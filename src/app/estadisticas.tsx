@@ -8,6 +8,13 @@ const PERIODOS = { "4": "4 semanas", "12": "12 semanas", temporada: "Temporada" 
 type Periodo = keyof typeof PERIODOS;
 const pct = (v?: number) => (v === undefined ? "–" : `${Math.round(v * 100)}%`);
 
+/** Fecha desde la que hacen falta datos para un periodo */
+export function desdePeriodo(periodo?: string) {
+  const p: Periodo = periodo && periodo in PERIODOS ? (periodo as Periodo) : "4";
+  const hoy = iso(new Date());
+  return p === "temporada" ? semanasTemporada(hoy)[0] : sumarDias(hoy, -7 * Number(p));
+}
+
 /** Asistencia, bajas, ocupación y alumnos que faltan mucho */
 export function Estadisticas({ d, clubId, periodo, base }: { d: Consultas; clubId: string; periodo?: string; base: string }) {
   const p: Periodo = periodo && periodo in PERIODOS ? (periodo as Periodo) : "4";

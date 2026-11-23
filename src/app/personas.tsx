@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Grupo, Persona } from "@/lib/datos";
-import { altaPersona, altaVarios, cambiarActivo, cambiarNivel, gruposPersona } from "./acciones";
+import { altaPersona, altaVarios, bajaPersona, cambiarActivo, cambiarNivel, gruposPersona } from "./acciones";
 import { Boton } from "./cliente";
 import { DIAS } from "./admin/campos";
 import { iniciales } from "./marco";
@@ -8,7 +8,7 @@ import { iniciales } from "./marco";
 const etiquetaGrupo = (g: Grupo) => `${g.nombre} · ${DIAS[g.dia - 1].slice(0, 3)} ${g.hora}`;
 
 /** Ficha de gestión de una persona: grupos y si está activa. La usan administración y los profes. */
-export function PersonaGestion({ p, club, grupos, ruta, conFicha, niveles = [] }: { p: Persona; club: string; grupos: Grupo[]; ruta: string; conFicha?: boolean; niveles?: string[] }) {
+export function PersonaGestion({ p, club, grupos, ruta, conFicha, niveles = [], admin }: { p: Persona; club: string; grupos: Grupo[]; ruta: string; conFicha?: boolean; niveles?: string[]; admin?: boolean }) {
   const deSuNivel = grupos.filter((g) => !p.nivel || g.nivel === p.nivel);
   const resto = grupos.filter((g) => !deSuNivel.includes(g));
   const estado = !p.activo ? <span className="pill gris">Inactivo</span>
@@ -62,14 +62,42 @@ export function PersonaGestion({ p, club, grupos, ruta, conFicha, niveles = [] }
           </form>
         )}
         {p.rol === "alumno" && p.usuario && (
-          <form action={cambiarActivo}>
-            <input type="hidden" name="club" value={club} />
-            <input type="hidden" name="email" value={p.email} />
-            <input type="hidden" name="ruta" value={ruta} />
-            <input type="hidden" name="activo" value={p.activo ? "0" : "1"} />
-            <Boton className={p.activo ? "btn peligro" : "btn"}>{p.activo ? "Marcar como inactivo" : "Volver a activar"}</Boton>
-            {p.activo && <p className="meta" style={{ marginTop: 6 }}>Sale de sus grupos y no podrá entrar. Su ficha se guarda.</p>}
-          </form>
+          p.activo ? (
+            <details className="confirmar">
+              <summary className="btn peligro">Dar de baja</summary>
+              <form action={cambiarActivo} className="form">
+                <input type="hidden" name="club" value={club} />
+                <input type="hidden" name="email" value={p.email} />
+                <input type="hidden" name="ruta" value={ruta} />
+                <input type="hidden" name="activo" value="0" />
+                <span className="meta">Sale de sus grupos y ya no puede entrar. Su ficha y su historial se guardan por si vuelve.</span>
+                <div><Boton className="btn peligro-lleno">Sí, dar de baja a {p.nombre.split(" ")[0]}</Boton></div>
+              </form>
+            </details>
+          ) : (
+            <form action={cambiarActivo}>
+              <input type="hidden" name="club" value={club} />
+              <input type="hidden" name="email" value={p.email} />
+              <input type="hidden" name="ruta" value={ruta} />
+              <input type="hidden" name="activo" value="1" />
+              <Boton className="btn">Volver a dar de alta</Boton>
+            </form>
+          )
+        )}
+        {admin && (
+          <div className="fila" style={{ alignItems: "start" }}>
+            <a className="btn" href={`/admin/datos?club=${club}&email=${encodeURIComponent(p.email)}`}>Descargar sus datos</a>
+            <details className="confirmar">
+              <summary className="btn peligro">Borrar todos sus datos</summary>
+              <form action={bajaPersona} className="form">
+                <input type="hidden" name="club" value={club} />
+                <input type="hidden" name="email" value={p.email} />
+                <span className="meta">Derecho al olvido (RGPD): se borra su cuenta, ficha, asistencias, mensajes y todo lo suyo. No se puede deshacer.</span>
+                <label className="check"><input type="checkbox" name="confirmar" value="si" required />Entiendo que no se puede deshacer</label>
+                <div><Boton className="btn peligro-lleno">Borrar para siempre</Boton></div>
+              </form>
+            </details>
+          </div>
         )}
       </div>
     </details>

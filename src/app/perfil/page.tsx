@@ -1,6 +1,6 @@
 
 import { yo, clubElegido } from "@/lib/sesion";
-import { datos } from "@/lib/repo";
+import { ampliarDatos, datos } from "@/lib/repo";
 import { DIAS } from "../admin/campos";
 import { iso, lunesDe } from "@/lib/fechas";
 import { semanasTemporada } from "@/lib/datos";
@@ -9,6 +9,7 @@ import { Cabecera, Nav, iniciales } from "../marco";
 import { Boton, Instalar } from "../cliente";
 
 export default async function Perfil() {
+  ampliarDatos(semanasTemporada(iso(new Date()))[0]); // las cifras son de toda la temporada
   const u = await yo();
   const club = await clubElegido();
   const d = await datos();
@@ -61,6 +62,13 @@ export default async function Perfil() {
           </div>
         )}
         <Instalar />
+        <div className="lista">
+          <a href="/privacidad">Privacidad <span className="meta">›</span></a>
+          <a href="/mis-datos" download>Descargar mis datos <span className="meta">JSON</span></a>
+          <details className="borrar-cuenta"><summary>Borrar mi cuenta</summary>
+            <p className="meta">Pídeselo a {club?.nombre ?? "tu club"}: borrará tu cuenta y todos tus datos. Antes puedes descargarlos arriba.</p>
+          </details>
+        </div>
         <div className="lista">
           <form action={salir}><Boton className="">Cerrar sesión</Boton></form>
           <form action={cambiarClub}><Boton className="">Cambiar de club</Boton></form>

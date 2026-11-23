@@ -8,31 +8,54 @@ const n = (v: unknown) => (v == null ? undefined : Number(v));
 const cuota = (x?: { mensual: unknown; alta: unknown; cliente_desde: string | null }) =>
   x ? { cuotaMensual: n(x.mensual), cuotaAlta: n(x.alta), clienteDesde: x.cliente_desde ?? undefined } : {};
 
-/** Lee todo lo del club del usuario conectado. Las reglas de seguridad de Supabase filtran por club. */
-async function foto(): Promise<Db> {
+type Resp<T> = { data: T[] | null; error: { message: string } | null };
+/** Lee todas las filas aunque pasen de 1.000 (Supabase corta cada respuesta en 1.000) */
+async function todas<T>(pagina: (desde: number, hasta: number) => PromiseLike<Resp<T>>): Promise<Resp<T>> {
+  const out: T[] = [];
+  for (let i = 0; ; i += 1000) {
+    const r = await pagina(i, i + 999);
+    if (r.error) return r;
+    out.push(...(r.data ?? []));
+    if ((r.data ?? []).length < 1000) return { data: out, error: null };
+  }
+}
+
+/** Fecha desde la que se leen bajas, asistencias, etc. Por defecto 6 semanas atrás (lo que usan las pantallas normales). */
+const desdePorDefecto = () => {
+  const d = new Date(Date.now() - 42 * 864e5);
+  return d.toISOString().slice(0, 10);
+};
+
+/** Lee lo del club del usuario conectado. Las reglas de seguridad de Supabase filtran por club y por persona. */
+async function foto(desde: string): Promise<Db> {
   const s = await sb();
-  const [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs, fichas, invs, asis, canc, notas, anun, avs, nivs, plan, cuotas] = await Promise.all([
+  const [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs, fichas, invs, asis, canc, notas, anun, avs, nivs, plan, cuotas, emails, consent] = await Promise.all([
     s.from("clubs").select("*"),
-    s.from("usuarios").select("*"),
+    s.from("usuarios").select("id, club_id, nombre, rol, nivel, activo"),
     s.from("grupos").select("*"),
-    s.from("grupo_alumnos").select("grupo_id, alumno_id"),
-    s.from("sesiones").select("grupo_id, fecha, contenido"),
-    s.from("bajas").select("id, alumno_id, grupo_id, fecha"),
-    s.from("creditos").select("id, alumno_id, baja_id, caduca, usado"),
-    s.from("recuperaciones").select("id, alumno_id, credito_id, grupo_id, fecha, estado"),
+    todas<{ grupo_id: string; alumno_id: string }>((a, b) => s.from("grupo_alumnos").select("grupo_id, alumno_id").range(a, b)),
+    todas<{ grupo_id: string; fecha: string; contenido: string }>((a, b) => s.from("sesiones").select("grupo_id, fecha, contenido").gte("fecha", desde).range(a, b)),
+    todas<{ id: string; alumno_id: string; grupo_id: string; fecha: string }>((a, b) => s.from("bajas").select("id, alumno_id, grupo_id, fecha").gte("fecha", desde).range(a, b)),
+    todas<{ id: string; alumno_id: string; baja_id: string; caduca: string; usado: boolean }>((a, b) => s.from("creditos").select("id, alumno_id, baja_id, caduca, usado").gte("caduca", desde).range(a, b)),
+    todas<{ id: string; alumno_id: string; credito_id: string | null; grupo_id: string; fecha: string; estado: string }>((a, b) => s.from("recuperaciones").select("id, alumno_id, credito_id, grupo_id, fecha, estado").gte("fecha", desde).range(a, b)),
     // Estas dos pueden no existir aún (supabase/04_admin.sql): si fallan, se dejan vacías
     s.from("fichas").select("alumno_id, lesiones, trabajado, a_trabajar, actualizado_en"),
     s.from("invitaciones").select("email, club_id, nombre, rol, nivel, grupos"),
     // De supabase/05_club_vivo.sql (también opcionales)
-    s.from("asistencias").select("grupo_id, fecha, alumno_id, presente"),
-    s.from("cancelaciones").select("grupo_id, fecha, motivo"),
+    todas<{ grupo_id: string; fecha: string; alumno_id: string; presente: boolean }>((a, b) => s.from("asistencias").select("grupo_id, fecha, alumno_id, presente").gte("fecha", desde).range(a, b)),
+    s.from("cancelaciones").select("grupo_id, fecha, motivo").gte("fecha", desde),
     s.from("notas_privadas").select("alumno_id, texto"),
     s.from("anuncios").select("id, club_id, autor_id, texto, creado_en").order("creado_en", { ascending: false }).limit(50),
     s.from("avisos").select("id, usuario_id, texto, enlace, leido, creado_en").order("creado_en", { ascending: false }).limit(30),
     s.from("niveles").select("id, club_id, nombre, orden"),
     s.from("plan_semanas").select("club_id, nivel, semana, contenido"), // supabase/07_chat_plan.sql
     s.from("club_cuotas").select("club_id, mensual, alta, cliente_desde"), // solo administración
+    s.rpc("emails_visibles"), // supabase/09: los emails solo los ven profesores del club y administración
+    s.from("consentimientos").select("usuario_id"),
   ]);
+  // Antes de ejecutar supabase/09 no existe emails_visibles: se leen de la tabla como antes
+  const lista = emails.error ? (await s.from("usuarios").select("id, email")).data : emails.data;
+  const email = new Map<string, string>(((lista ?? []) as { id: string; email: string }[]).map((x) => [x.id, x.email]));
   const error = [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs].find((r) => r.error)?.error;
   if (error) throw new Error(`No se pudieron leer los datos: ${error.message}`);
   return {
@@ -40,9 +63,10 @@ async function foto(): Promise<Db> {
       id: c.id, slug: c.slug, codigo: c.codigo_acceso ?? "", nombre: c.nombre,
       horasBaja: c.horas_antelacion_baja, diasCaducidad: c.dias_caducidad_recuperacion, maxAlumnos: c.max_alumnos_clase,
       color: c.color ?? undefined, logo: c.logo_url ?? undefined, cancelarRecupera: c.cancelar_da_recuperacion ?? true,
+      recuperacionAutomatica: c.recuperacion_automatica ?? false,
       ...cuota(cuotas.data?.find((x) => x.club_id === c.id)),
     })),
-    usuarios: usuarios.data!.map((u) => ({ id: u.id, clubId: u.club_id ?? "", nombre: u.nombre, rol: u.rol, nivel: u.nivel ?? undefined, email: u.email, activo: u.activo !== false })),
+    usuarios: usuarios.data!.map((u) => ({ id: u.id, clubId: u.club_id ?? "", nombre: u.nombre, rol: u.rol, nivel: u.nivel ?? undefined, email: email.get(u.id), activo: u.activo !== false })),
     grupos: grupos.data!.map((g) => ({
       id: g.id, clubId: g.club_id, nombre: g.nombre, nivel: g.nivel, profeId: g.profe_id ?? "",
       dia: g.dia_semana, hora: String(g.hora_inicio).slice(0, 5), duracion: g.duracion_min, pista: g.pista ?? "", max: g.max_alumnos ?? undefined,
@@ -64,6 +88,7 @@ async function foto(): Promise<Db> {
     avisos: (avs.data ?? []).map((x) => ({ id: x.id, usuarioId: x.usuario_id, texto: x.texto, enlace: x.enlace ?? undefined, leido: x.leido, creado: x.creado_en })),
     plan: Object.fromEntries((plan.data ?? []).map((x) => [`${x.club_id}|${x.nivel}|${x.semana}`, x.contenido])),
     mensajes: [],
+    consentidos: consent.error ? undefined : new Set((consent.data ?? []).map((x) => x.usuario_id)),
     niveles: (nivs.data ?? []).map((n) => ({ id: n.id, clubId: n.club_id, nombre: n.nombre, orden: n.orden })),
     invitaciones: (invs.data ?? []).map((i) => ({
       email: i.email, clubId: i.club_id ?? "", nombre: i.nombre, rol: i.rol, nivel: i.nivel ?? undefined, grupos: i.grupos ?? [],
@@ -71,10 +96,19 @@ async function foto(): Promise<Db> {
   };
 }
 
+/** Desde qué fecha lee esta petición. Las pantallas de estadísticas lo amplían ANTES de leer nada. */
+const rango = cache(() => ({ desde: undefined as string | undefined }));
+export function ampliarDatos(desde: string) {
+  const r = rango();
+  if (!r.desde || desde < r.desde) r.desde = desde;
+}
+
 /** Una sola lectura por petición, compartida por todos los componentes de la página. */
 export const datos = cache(async () => {
   await connection(); // siempre en el momento de la petición
-  return consultas(modoSupabase ? await foto() : memoria);
+  const r = rango();
+  const desde = r.desde && r.desde < desdePorDefecto() ? r.desde : desdePorDefecto();
+  return consultas(modoSupabase ? await foto(desde) : memoria);
 });
 
 /** Últimos mensajes de unos grupos, del más nuevo al más antiguo */
@@ -88,12 +122,26 @@ export async function mensajes(grupos: string[], limite = 100): Promise<Mensaje[
   return (data ?? []).map((m) => ({ id: m.id, grupoId: m.grupo_id, autorId: m.autor_id ?? undefined, texto: m.texto, creado: m.creado_en }));
 }
 
+/** Mensajes de chat escritos por una persona (para la descarga de sus datos) */
+export async function mensajesDe(uid: string) {
+  if (!modoSupabase) return memoria.mensajes.filter((m) => m.autorId === uid).map((m) => ({ texto: m.texto, fecha: m.creado }));
+  const { data } = await (await sb()).from("mensajes").select("texto, creado_en").eq("autor_id", uid).order("creado_en").limit(5000);
+  return (data ?? []).map((m) => ({ texto: m.texto, fecha: m.creado_en }));
+}
+
 async function rpc(nombre: string, args: Record<string, unknown>): Promise<string | null> {
   const { error } = await (await sb()).rpc(nombre, args);
   return error ? error.message.replace(/\bprofes\b/g, "profesores").replace(/\bprofe\b/g, "profesor") : null;
 }
 
 export const acciones = {
+  /** Estado de la recuperación recién pedida (lectura fresca, sin la foto de la petición) */
+  async estadoRecuperacion(uid: string, grupo: string, fecha: string): Promise<string | undefined> {
+    if (!modoSupabase) return memoria.recuperaciones.find((r) => r.alumnoId === uid && r.grupoId === grupo && r.fecha === fecha && r.estado !== "rechazada")?.estado;
+    const { data } = await (await sb()).from("recuperaciones").select("estado")
+      .eq("alumno_id", uid).eq("grupo_id", grupo).eq("fecha", fecha).neq("estado", "rechazada").limit(1);
+    return data?.[0]?.estado;
+  },
   async clubPorCodigo(codigo: string): Promise<{ id: string; slug: string; nombre: string } | undefined> {
     if (!modoSupabase) return demo.clubPorCodigo(codigo);
     const { data } = await (await sb()).rpc("club_por_codigo", { p_codigo: codigo });
@@ -180,5 +228,15 @@ export const acciones = {
     modoSupabase
       ? rpc("admin_cuota_club", { p_club: club, p_mensual: mensual ?? null, p_alta: alta ?? null, p_desde: desde || null })
       : Promise.resolve(demo.cuotaClub(club, mensual, alta, desde)),
+  deshacerBaja: (uid: string, grupo: string, fecha: string) =>
+    modoSupabase ? rpc("deshacer_baja", { p_grupo: grupo, p_fecha: fecha }) : Promise.resolve(demo.deshacerBaja(uid, grupo, fecha)),
+  ajustesClub: (club: string, auto: boolean) =>
+    modoSupabase ? rpc("admin_ajustes_club", { p_club: club, p_recuperacion_automatica: auto }) : Promise.resolve(demo.ajustesClub(club, auto)),
+  aceptarPrivacidad: (uid: string, version: string, menor14: boolean, tutor: string) =>
+    modoSupabase
+      ? rpc("aceptar_privacidad", { p_version: version, p_menor14: menor14, p_tutor: tutor })
+      : Promise.resolve(demo.aceptarPrivacidad(uid, menor14, tutor)),
+  borrarClub: (club: string, confirmar: string) =>
+    modoSupabase ? rpc("admin_borrar_club", { p_club: club, p_confirmar_nombre: confirmar }) : Promise.resolve(demo.borrarClub(club, confirmar)),
   borrarNivel: (id: string) => (modoSupabase ? rpc("admin_borrar_nivel", { p_id: id }) : Promise.resolve(demo.borrarNivel(id))),
 };

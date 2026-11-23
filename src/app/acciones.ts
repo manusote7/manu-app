@@ -85,10 +85,19 @@ export async function darBaja(form: FormData) {
   volver(String(form.get("ruta") ?? "/semana"), err, "Baja hecha. Tienes una recuperación nueva.");
 }
 
+export async function deshacerBaja(form: FormData) {
+  const u = await yo();
+  const err = await a.deshacerBaja(u.id, String(form.get("grupo")), String(form.get("fecha")));
+  volver(String(form.get("ruta") ?? "/semana"), err, "Hecho: vuelves a tener tu plaza.");
+}
+
 export async function pedirRecuperacion(form: FormData) {
   const u = await yo();
-  const err = await a.pedirRecuperacion(u.id, String(form.get("grupo")), String(form.get("fecha")));
-  volver(err ? "/recuperar" : "/semana", err, "Solicitud enviada al profesor.");
+  const grupo = String(form.get("grupo")), fecha = String(form.get("fecha"));
+  const err = await a.pedirRecuperacion(u.id, grupo, fecha);
+  // Si el club confirma solo cuando hay hueco, la plaza ya es suya
+  const confirmada = !err && (await a.estadoRecuperacion(u.id, grupo, fecha)) === "aprobada";
+  volver(err ? "/recuperar" : `/semana?d=${fecha}`, err, confirmada ? "Plaza confirmada. ¡Nos vemos en clase!" : "Solicitud enviada al profesor.");
 }
 
 export async function resolver(form: FormData) {
@@ -213,7 +222,7 @@ export async function bajaPersona(form: FormData) {
   const club = txt(form, "club");
   if (txt(form, "confirmar") !== "si") volver(`/admin/club/${club}#personas`, "Marca la casilla para confirmar.", "");
   const err = await a.bajaPersona(club, txt(form, "email"));
-  volver(`/admin/club/${club}#personas`, err, "Persona quitada del club.");
+  volver(`/admin/club/${club}#personas`, err, "Persona borrada con todos sus datos.");
 }
 
 export async function cambiarActivo(form: FormData) {
@@ -221,7 +230,7 @@ export async function cambiarActivo(form: FormData) {
   await gestor(club);
   const activo = txt(form, "activo") === "1";
   const err = await a.cambiarActivo(club, txt(form, "email"), activo);
-  volver(rutaGestion(form, club), err, activo ? "Alumno activado. Ponle en sus grupos." : "Alumno marcado como inactivo.");
+  volver(rutaGestion(form, club), err, activo ? "Activado de nuevo. Ponle en sus grupos." : "Dado de baja. Ya no puede entrar; sus datos se guardan.");
 }
 
 export async function guardarMax(form: FormData) {
@@ -254,7 +263,8 @@ async function quien() {
 export async function pasarLista(form: FormData) {
   const u = await yo();
   const lista = String(form.get("lista") ?? "").split(",").filter(Boolean);
-  const presentes = form.getAll("presente").map(String);
+  // Cada alumno tiene "Vino" (1) / "No vino" (0); se mantiene "presente" por compatibilidad
+  const presentes = form.has(`a_${lista[0]}`) ? lista.filter((id) => form.get(`a_${id}`) !== "0") : form.getAll("presente").map(String);
   const err = await a.pasarLista(u.id, txt(form, "grupo"), txt(form, "fecha"), lista, presentes);
   volver(txt(form, "ruta") || "/semana", err, `Lista guardada: ${presentes.length} de ${lista.length}.`);
 }
@@ -402,4 +412,31 @@ export async function altaVarios(form: FormData) {
   const quien = rol === "profe" ? ["profesor dado", "profesores dados"] : ["alumno dado", "alumnos dados"];
   const ok = `${hechas} ${hechas === 1 ? quien[0] : quien[1]} de alta.`;
   volver(rutaGestion(form, club), malas.length ? `${ok} No se pudo con: ${malas.slice(0, 5).join(" · ")}${malas.length > 5 ? "…" : ""}` : null, ok);
+}
+
+// ---------- RGPD y ajustes ----------
+
+export async function aceptarPrivacidad(form: FormData) {
+  const u = await yo({ sinPrivacidad: true });
+  if (form.get("acepto") !== "on") redirect("/bienvenida?error=" + encodeURIComponent("Marca la casilla para aceptar."));
+  const { VERSION_PRIVACIDAD } = await import("@/lib/privacidad");
+  const err = await a.aceptarPrivacidad(u.id, VERSION_PRIVACIDAD, form.get("menor14") === "on", txt(form, "tutor"));
+  if (err) redirect("/bienvenida?error=" + encodeURIComponent(err));
+  volver("/semana", null, "¡Bienvenido a PalaClass!");
+}
+
+export async function ajustesClub(form: FormData) {
+  await yoAdmin();
+  const club = txt(form, "club");
+  const err = await a.ajustesClub(club, form.get("auto") === "on");
+  volver(`/admin/club/${club}`, err, "Ajuste guardado.");
+}
+
+/** Borrar un club entero: hay que escribir su nombre exacto */
+export async function borrarClub(form: FormData) {
+  await yoAdmin();
+  const club = txt(form, "club");
+  const err = await a.borrarClub(club, txt(form, "nombre"));
+  if (err) volver(`/admin/club/${club}`, err, "");
+  volver("/admin", null, "Club borrado con todos sus datos.");
 }

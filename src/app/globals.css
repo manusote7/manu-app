@@ -311,3 +311,43 @@ details.bloque > .form, details.bloque > .contenido { padding: 0 14px 14px; }
 .grupo-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 2px; }
 .grupo-cab b { font-family: var(--display); font-weight: 700; font-size: 1.02rem; }
 .nombre-app { font-family: var(--display); font-weight: 800; letter-spacing: .02em; color: var(--pista-2); font-size: 1rem; }
+
+/* Pasar lista con botones grandes */
+.filas-asis { display: grid; gap: 6px; }
+.fila-asis { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--linea); }
+.fila-asis .quien { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; font-size: .92rem; }
+.fila-asis .quien .pill { margin-left: 6px; font-size: .68rem; }
+.fila-asis .ini.recupera { background: var(--pelota-suave); }
+.si-no { display: inline-flex; gap: 6px; flex-shrink: 0; }
+.si-no label { position: relative; min-height: 44px; min-width: 68px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 12px; border: 2px solid var(--linea); font-weight: 700; font-size: .85rem; cursor: pointer; padding: 0 10px; color: var(--muted); }
+.si-no input { position: absolute; opacity: 0; pointer-events: none; }
+.si-no label:has(input:checked) { background: var(--pista-2); border-color: var(--pista-2); color: #fff; }
+.si-no label.no:has(input:checked) { background: var(--mal); border-color: var(--mal); }
+.si-no label:has(input:focus-visible) { outline: 2px solid var(--pista-2); outline-offset: 2px; }
+
+/* "No puedo ir" con confirmación */
+details.confirmar { margin-top: 10px; display: grid; gap: 6px; }
+details.confirmar summary { list-style: none; display: inline-block; width: fit-content; cursor: pointer; }
+details.confirmar summary::-webkit-details-marker { display: none; }
+details.confirmar[open] summary { opacity: .6; }
+details.confirmar form { margin-top: 8px; }
+.btn.peligro-lleno { background: var(--mal); color: #fff; border-color: var(--mal); }
+
+/* Los errores se quedan a la vista (los mensajes verdes se van solos) */
+.toast.err { animation: none; }
+.toast.err { cursor: pointer; } .toast.err input { display: none; } .toast.err:has(input:checked) { display: none; }
+.toast.err .cerrar { font-weight: 700; margin-left: 10px; }
+
+/* Privacidad */
+.legal h2 { font-size: 1rem; margin: 16px 0 4px; }
+.legal p, .legal li { font-size: .92rem; line-height: 1.5; color: var(--fg); }
+.legal ul { padding-left: 18px; margin: 4px 0; }
+label.check { display: flex !important; gap: 10px; align-items: flex-start; font-size: .92rem !important; font-weight: 500 !important; color: var(--fg) !important; line-height: 1.4; }
+label.check input { margin-top: 3px; width: 20px; height: 20px; flex-shrink: 0; }
+details.menor { display: grid; gap: 10px; }
+details.menor summary { cursor: pointer; }
+.zona-peligro { border-color: var(--mal) !important; }
+.lista > details.borrar-cuenta { display: block; }
+.lista > details.borrar-cuenta summary { cursor: pointer; list-style: none; color: var(--mal); }
+.lista > details.borrar-cuenta p { margin-top: 8px; }

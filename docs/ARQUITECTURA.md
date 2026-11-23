@@ -37,7 +37,9 @@ GitHub Actions ── consulta diaria (para que no se pause) y copia semanal cif
 | `src/lib/supabase.ts` | Cliente de Supabase en el servidor (lee/escribe cookies). |
 | `src/lib/fechas.ts` | Utilidades de fechas (`YYYY-MM-DD`, lunes de la semana…). |
 | `src/middleware.ts` | Se ejecuta en cada petición: renueva la sesión de Supabase. |
-| `supabase/*.sql` | Esquema y funciones, en orden: `schema.sql`, `02`…`07`. |
+| `supabase/*.sql` | Esquema y funciones, en orden: `schema.sql`, `02`…`09`. |
+| `src/lib/privacidad.ts`, `src/app/privacidad/` | Aviso de privacidad (versión) y su texto. |
+| `docs/legal/` | Textos legales base (contrato de encargado, registro). Revisar con un abogado. |
 | `.github/workflows/` | `supabase-despierto.yml` y `copia-seguridad.yml`. |
 | `wrangler.jsonc`, `open-next.config.ts` | Configuración de Cloudflare. |
 
@@ -54,6 +56,9 @@ GitHub Actions ── consulta diaria (para que no se pause) y copia semanal cif
 | `/club`, `/plan`, `/estadisticas`, `/tablon` | profesor | Plan de temporada, estadísticas y tablón. |
 | `/perfil`, `/avisos` | todos | Perfil con cifras; avisos (campana). |
 | `/admin`, `/admin/club/[id]` | administración | Clubs, cuotas, reglas, niveles, grupos, personas, estadísticas. |
+| `/bienvenida` | todos | La primera vez: aviso de privacidad y consentimiento (tutor si es menor de 14). |
+| `/privacidad`, `/mis-datos` | todos | Aviso de privacidad; descarga de tus datos (JSON). |
+| `/admin/datos` | administración | Descarga los datos de una persona (RGPD). |
 | `/auth/confirm` | — | Destino del enlace del email (alternativa al código). |
 
 ## 3. Cómo fluye una pantalla
@@ -87,7 +92,10 @@ Tablas principales:
 
 Seguridad:
 
-- **RLS** en todas las tablas. Lectura: `club_id = mi_club()` (tu club) o `es_admin()`. El chat solo lo leen los del grupo (`es_del_grupo`).
+- **RLS** en todas las tablas. Lectura: `club_id = mi_club()` (tu club) o `es_admin()`. `mi_club()` y `mi_rol()` devuelven nada si la cuenta está inactiva. El chat solo lo leen los del grupo (`es_del_grupo`).
+- **Privacidad entre alumnos** (`09`): un alumno ve de `usuarios` solo a sí mismo, a los profesores y a sus compañeros de grupo; asistencias y recuperaciones solo las suyas. La columna `email` no se puede leer: los emails salen de `emails_visibles()` (tú, profesores de tu club, administración).
+- **Fechas**: `foto()` lee bajas, asistencias, etc. de las últimas 6 semanas. Las pantallas de estadísticas y el perfil llaman antes a `ampliarDatos(desde)`.
+- **Chat**: el móvil pregunta a Supabase cada 6 s si hay mensajes nuevos (`ChatVivo` en `cliente.tsx`) y solo entonces recarga.
 - **Escrituras solo con funciones SQL** `security definer` que comprueban permisos: `dar_baja`, `pedir_recuperacion`, `resolver_recuperacion`, `pasar_lista`, `cancelar_clase`, `colocar_alumno`, `enviar_mensaje`, `guardar_plan`, `admin_*`… Desde la web no se puede hacer `insert/update` directo.
 - Los mensajes de error que ves en la app son los `raise exception` de esas funciones.
 

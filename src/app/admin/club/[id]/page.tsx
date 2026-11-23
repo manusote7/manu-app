@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { datos } from "@/lib/repo";
 import { yoAdmin } from "@/lib/sesion";
-import { cuotaClub, guardarClub, guardarGrupo, borrarGrupo, marcaClub, publicarAnuncio, guardarNivel, moverNivel, borrarNivel } from "../../../acciones";
+import { ajustesClub, borrarClub, cuotaClub, guardarClub, guardarGrupo, borrarGrupo, marcaClub, publicarAnuncio, guardarNivel, moverNivel, borrarNivel } from "../../../acciones";
 import { Aviso, EstiloClub, Icono, Marca } from "../../../marco";
 import { Boton } from "../../../cliente";
 import { CamposClub, CamposGrupo, DIAS } from "../../campos";
@@ -75,6 +75,16 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
               <input type="checkbox" name="recupera" defaultChecked={club.cancelarRecupera !== false} />
               Si un profesor cancela una clase, cada alumno recibe una recuperación
             </label>
+            <div><Boton className="btn prim">Guardar</Boton></div>
+          </form>
+        </details>
+
+        <details className="bloque">
+          <summary><b>Recuperaciones</b><span className="meta">{club.recuperacionAutomatica ? "Se confirman solas si hay hueco" : "Las aprueba el profesor"}</span></summary>
+          <form action={ajustesClub} className="form">
+            <input type="hidden" name="club" value={id} />
+            <label className="check"><input type="checkbox" name="auto" defaultChecked={!!club.recuperacionAutomatica} />
+              Si hay hueco en la clase, la recuperación queda confirmada al momento (el profesor recibe un aviso)</label>
             <div><Boton className="btn prim">Guardar</Boton></div>
           </form>
         </details>
@@ -167,7 +177,16 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
         <div className="tit-seccion" id="personas"><h2>Personas</h2><span className="meta">{profes.length} profesores · {alumnos.length} alumnos</span></div>
         <FormAlta club={id} grupos={grupos} niveles={niveles} ruta={ruta} puedeProfe />
         <FormAltaVarios club={id} grupos={grupos} niveles={niveles} ruta={ruta} puedeProfe />
-        {personas.map((p) => <PersonaGestion key={p.email} p={p} club={id} grupos={grupos} ruta={ruta} niveles={niveles} />)}
+        {personas.map((p) => <PersonaGestion key={p.email} p={p} club={id} grupos={grupos} ruta={ruta} niveles={niveles} admin />)}
+        <details className="bloque zona-peligro" style={{ marginTop: 24 }}>
+          <summary><b style={{ color: "var(--mal)" }}>Borrar este club</b><span className="meta">Borra el club, sus grupos, clases y las cuentas de su gente</span></summary>
+          <form action={borrarClub} className="form" style={{ padding: "0 14px 14px" }}>
+            <input type="hidden" name="club" value={id} />
+            <label>Escribe el nombre del club para confirmar: {club.nombre}
+              <input name="nombre" className="campo" required autoComplete="off" placeholder={club.nombre} /></label>
+            <div><Boton className="btn peligro-lleno">Borrar el club para siempre</Boton></div>
+          </form>
+        </details>
       </div>
     </main>
   );

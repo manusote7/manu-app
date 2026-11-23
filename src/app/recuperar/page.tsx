@@ -24,7 +24,7 @@ export default async function Recuperar({ searchParams }: { searchParams: Promis
           <>
             <p className="meta">
               Clases de nivel {u.nivel} con plaza libre. Tienes {creditos.length === 1 ? "1 recuperación" : `${creditos.length} recuperaciones`};
-              el profesor confirma tu plaza.
+              {d.club(u.clubId).recuperacionAutomatica ? "si hay hueco, la plaza es tuya al momento." : "el profesor confirma tu plaza."}
             </p>
             {clases.length === 0 && <Vacio titulo="Ahora no hay plazas libres" texto="Vuelve a mirar en unos días." />}
             {clases.map((c) => {

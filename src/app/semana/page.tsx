@@ -5,7 +5,7 @@ import type { Clase, Usuario, Recuperacion, Consultas } from "@/lib/datos";
 import { datos } from "@/lib/repo";
 import { fechaCorta, formatoLimite, horaFin, iso, letraDia, lunesDe, nombreDia, sumarDias, deIso } from "@/lib/fechas";
 import { yo } from "@/lib/sesion";
-import { cancelarClase, colocarAlumno, darBaja, guardarMax, guardarSesion, pasarLista, resolver } from "../acciones";
+import { cancelarClase, colocarAlumno, darBaja, deshacerBaja, guardarMax, guardarSesion, pasarLista, resolver } from "../acciones";
 import { Aviso, Cabecera, Icono, Nav, Vacio, iniciales } from "../marco";
 import { Boton, Dias } from "../cliente";
 
@@ -141,15 +141,28 @@ function ClaseAlumno({ c, u, d, recs, hoy }: { c: Clase; u: Usuario; d: Consulta
           ? <div className="sesion"><small>Qué vais a trabajar</small>{c.contenido}</div>
           : <Plan c={c} d={d} />}
         <Link href={`/chat/${c.grupo.id}`} className="enlace-chat"><Icono.chat />Chat del grupo</Link>
+        {deBaja && !pasada && ahora <= limite && (
+          <form action={deshacerBaja} className="acciones">
+            <input type="hidden" name="grupo" value={c.grupo.id} />
+            <input type="hidden" name="fecha" value={c.fecha} />
+            <input type="hidden" name="ruta" value={ruta} />
+            <Boton className="btn">Deshacer: sí voy</Boton>
+            <span className="meta">Puedes deshacerlo hasta {formatoLimite(limite, hoy)}</span>
+          </form>
+        )}
         {!deBaja && !pasada && (
           ahora <= limite ? (
-            <form action={darBaja} className="acciones">
-              <input type="hidden" name="grupo" value={c.grupo.id} />
-              <input type="hidden" name="fecha" value={c.fecha} />
-              <input type="hidden" name="ruta" value={ruta} />
-              <Boton className="btn peligro">No puedo ir</Boton>
+            <details className="confirmar">
+              <summary className="btn peligro">No puedo ir</summary>
+              <form action={darBaja} className="acciones">
+                <input type="hidden" name="grupo" value={c.grupo.id} />
+                <input type="hidden" name="fecha" value={c.fecha} />
+                <input type="hidden" name="ruta" value={ruta} />
+                <span className="meta">¿Seguro? Dejas tu plaza libre y te queda una recuperación.</span>
+                <Boton className="btn peligro-lleno">Sí, no voy</Boton>
+              </form>
               <span className="meta">Avisa hasta {formatoLimite(limite, hoy)}</span>
-            </form>
+            </details>
           ) : (
             <div className="acciones"><span className="meta">Ya no se puede avisar de una baja</span></div>
           )
@@ -206,7 +219,7 @@ function Solicitudes({ profeId, d, ruta }: { profeId: string; d: Consultas; ruta
 function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
   const max = d.maxDe(c.grupo);
   const fijos = new Set(c.grupo.alumnos);
-  const ruta = `/semana?d=${c.fecha}`;
+  const ruta = `/semana?d=${c.fecha}#c-${c.grupo.id}`; // vuelve a esta misma clase
   const ahora = new Date();
   const empezada = c.inicio <= ahora;
   const listaPasada = c.alumnos.some((a) => a.id in c.asistencia);
@@ -231,7 +244,7 @@ function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
   }
 
   return (
-    <div className="clase">
+    <div className="clase" id={`c-${c.grupo.id}`}>
       <Hora c={c} />
       <div className="card">
         <div className="card-cab">
@@ -246,13 +259,21 @@ function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
         <form action={pasarLista} className="lista-asis">
           {ocultos}
           <input type="hidden" name="lista" value={c.alumnos.map((a) => a.id).join(",")} />
-          <div className="alumnos">
+          <div className="filas-asis">
             {c.alumnos.map((a) => (
-              <label key={a.id} className={`chip asis${fijos.has(a.id) ? "" : " recupera"}`} title={fijos.has(a.id) ? undefined : "Viene a recuperar"}>
-                <input type="checkbox" name="presente" value={a.id} defaultChecked={c.asistencia[a.id] ?? true} />
-                <span className="ini">{iniciales(a.nombre)}</span>{a.nombre.split(" ")[0]}
-              </label>
+              <div key={a.id} className="fila-asis">
+                <span className="quien">
+                  <span className={`ini${fijos.has(a.id) ? "" : " recupera"}`}>{iniciales(a.nombre)}</span>
+                  <span>{a.nombre}{!fijos.has(a.id) && <small className="meta"> · recupera</small>}{d.ficha(a.id)?.lesiones && <small className="pill warn" title={d.ficha(a.id)!.lesiones}>Lesión</small>}</span>
+                </span>
+                <span className="si-no">
+                  <label><input type="radio" name={`a_${a.id}`} value="1" defaultChecked={c.asistencia[a.id] ?? true} />Vino</label>
+                  <label className="no"><input type="radio" name={`a_${a.id}`} value="0" defaultChecked={c.asistencia[a.id] === false} />No vino</label>
+                </span>
+              </div>
             ))}
+          </div>
+          <div className="alumnos">
             {c.bajas.map((a) => (
               <span key={a.id} className="chip baja" title="De baja"><span className="ini">{iniciales(a.nombre)}</span>{a.nombre.split(" ")[0]}</span>
             ))}
@@ -260,7 +281,7 @@ function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
           {c.alumnos.length > 0 && (empezada || c.fecha === iso(ahora)) && (
             <div className="acciones">
               <Boton className={listaPasada ? "btn" : "btn prim"}>{listaPasada ? "Actualizar lista" : "Pasar lista"}</Boton>
-              <span className="meta">{listaPasada ? `Han venido ${Object.values(c.asistencia).filter(Boolean).length}` : "Desmarca a quien no venga"}</span>
+              <span className="meta">{listaPasada ? `Han venido ${Object.values(c.asistencia).filter(Boolean).length}` : "Marca «No vino» a quien falte"}</span>
             </div>
           )}
         </form>

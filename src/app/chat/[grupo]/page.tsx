@@ -5,7 +5,7 @@ import { datos, mensajes } from "@/lib/repo";
 import { yo } from "@/lib/sesion";
 import { borrarMensaje, enviarMensaje } from "../../acciones";
 import { Aviso, Icono, Nav, iniciales } from "../../marco";
-import { AlFinal, Boton, Refrescar } from "../../cliente";
+import { AlFinal, Boton, ChatVivo } from "../../cliente";
 import { misGruposChat } from "../grupos";
 
 const ZONA = "Atlantic/Canary";
@@ -31,7 +31,7 @@ export default async function ChatGrupo({ params, searchParams }: { params: Prom
   return (
     <main className="app">
       <Aviso ok={sp.ok} error={sp.error} />
-      <Refrescar cada={8} />
+      <ChatVivo grupo={g.id} ultimo={lista.at(-1)?.creado ?? ""} />
       <AlFinal />
       <header className="cab">
         <div className="cab-top">

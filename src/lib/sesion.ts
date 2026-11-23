@@ -17,7 +17,7 @@ export async function clubElegido(): Promise<ClubElegido | undefined> {
 }
 
 /** Paso 2: la persona conectada, que tiene que ser de ese club. */
-export async function yo(): Promise<Usuario> {
+export async function yo(opc?: { sinPrivacidad?: boolean }): Promise<Usuario> {
   const club = await clubElegido();
   if (!club) redirect("/");
   let id: string | undefined;
@@ -36,6 +36,8 @@ export async function yo(): Promise<Usuario> {
   if (!u || u.clubId !== club.id) {
     redirect(`/c/${club.slug}?error=${encodeURIComponent("Tu cuenta no pertenece a este club.")}`);
   }
+  // RGPD: la primera vez hay que leer y aceptar el aviso de privacidad
+  if (!opc?.sinPrivacidad && !(await datos()).haAceptado(u.id)) redirect("/bienvenida");
   return u;
 }
 

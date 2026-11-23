@@ -70,9 +70,9 @@ export async function Cabecera({ titulo, u, children }: { titulo: string; u?: Us
   );
 }
 
-/** Mensaje breve tras una acción: aparece arriba y se va solo. */
+/** Mensaje tras una acción: el verde se va solo; el rojo se queda hasta tocarlo. */
 export function Aviso({ ok, error }: { ok?: string; error?: string }) {
-  if (error) return <p className="toast err" role="alert">{error}</p>;
+  if (error) return <label className="toast err" role="alert"><input type="checkbox" aria-label="Cerrar" />{error}<span className="cerrar" aria-hidden>✕</span></label>;
   if (ok) return <p className="toast" role="status">{ok}</p>;
   return null;
 }

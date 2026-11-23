@@ -1,15 +1,16 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { datos } from "@/lib/repo";
+import { ampliarDatos, datos } from "@/lib/repo";
 import { yoAdmin } from "@/lib/sesion";
 import { Icono } from "../../../../marco";
-import { Estadisticas } from "../../../../estadisticas";
+import { Estadisticas, desdePeriodo } from "../../../../estadisticas";
 
 export default async function StatsAdmin({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ p?: string }> }) {
+  const sp = await searchParams;
+  ampliarDatos(desdePeriodo(sp.p));
   await yoAdmin();
   const { id } = await params;
-  const sp = await searchParams;
   const d = await datos();
   const club = d.clubs.find((c) => c.id === id);
   if (!club) notFound();

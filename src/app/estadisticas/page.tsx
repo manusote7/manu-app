@@ -1,15 +1,16 @@
 
 import { redirect } from "next/navigation";
-import { datos } from "@/lib/repo";
+import { ampliarDatos, datos } from "@/lib/repo";
 import { yo } from "@/lib/sesion";
 import { Cabecera, Nav } from "../marco";
-import { Estadisticas } from "../estadisticas";
+import { Estadisticas, desdePeriodo } from "../estadisticas";
 
 export default async function Stats({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
+  const sp = await searchParams;
+  ampliarDatos(desdePeriodo(sp.p));
   const u = await yo();
   if (u.rol !== "profe") redirect("/semana");
   const d = await datos();
-  const sp = await searchParams;
   return (
     <main className="app">
       <Cabecera u={u} titulo="Estadísticas del club" />
