@@ -8,5 +8,10 @@
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "manu-app" }],
   // Servidor cerca de Supabase (Irlanda)
   "placement": { "mode": "smart" },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Públicas (ya van dentro de la web). Aquí para que cada despliegue las conserve.
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://dbxflcuayuenxygavhqx.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_NUlUDhmHEBpZ1YJaVCn1DA__xPK2LdS"
+  }
 }
