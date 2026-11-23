@@ -28,6 +28,9 @@ export async function yo(): Promise<Usuario> {
   }
   if (!id) redirect(`/c/${club.slug}`);
   const u = (await datos()).usuario(id);
+  if (u?.activo === false) {
+    redirect(`/c/${club.slug}?error=${encodeURIComponent("Tu cuenta está inactiva. Habla con tu club.")}`);
+  }
   if (!u || u.clubId !== club.id) {
     redirect(`/c/${club.slug}?error=${encodeURIComponent("Tu cuenta no pertenece a este club.")}`);
   }
@@ -38,4 +41,23 @@ export async function yo(): Promise<Usuario> {
 export async function conectado(): Promise<boolean> {
   if (modoSupabase) return Boolean((await (await sb()).auth.getClaims()).data?.claims?.sub);
   return Boolean((await cookies()).get("uid")?.value);
+}
+
+/** Administración conectada, o nada (sin redirigir) */
+export async function adminActual(): Promise<Usuario | undefined> {
+  const id = modoSupabase
+    ? (await (await sb()).auth.getClaims()).data?.claims?.sub
+    : (await cookies()).get("uid")?.value;
+  const u = id ? (await datos()).usuario(id) : undefined;
+  return u?.rol === "admin" ? u : undefined;
+}
+
+/** Administración: no depende de ningún club. */
+export async function yoAdmin(): Promise<Usuario> {
+  const id = modoSupabase
+    ? (await (await sb()).auth.getClaims()).data?.claims?.sub
+    : (await cookies()).get("uid")?.value;
+  const u = id ? (await datos()).usuario(id) : undefined;
+  if (!u || u.rol !== "admin") redirect("/admin");
+  return u;
 }

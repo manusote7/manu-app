@@ -6,7 +6,7 @@ import type { Clase, Usuario, Recuperacion, Consultas } from "@/lib/datos";
 import { datos } from "@/lib/repo";
 import { fechaCorta, formatoLimite, horaFin, iso, letraDia, lunesDe, nombreDia, sumarDias, deIso } from "@/lib/fechas";
 import { yo } from "@/lib/sesion";
-import { darBaja, guardarSesion, resolver } from "../acciones";
+import { darBaja, guardarMax, guardarSesion, resolver } from "../acciones";
 import { Aviso, Cabecera, Icono, Nav, Vacio, iniciales } from "../marco";
 import { Boton, Dias } from "../cliente";
 
@@ -68,7 +68,7 @@ export default async function MiSemana({ searchParams }: { searchParams: SP }) {
           }))}
         />
       </div>
-      <Nav alumno={!esProfe} activa="semana" />
+      <Nav rol={u.rol} activa="semana" />
     </main>
   );
 }
@@ -188,7 +188,7 @@ function Solicitudes({ profeId, d, ruta }: { profeId: string; d: Consultas; ruta
 }
 
 function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
-  const max = d.club(c.grupo.clubId).maxAlumnos;
+  const max = d.maxDe(c.grupo);
   const fijos = new Set(c.grupo.alumnos);
   const ruta = `/semana?d=${c.fecha}`;
   return (
@@ -215,13 +215,21 @@ function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
         </div>
         {c.contenido && <div className="sesion"><small>Sesión</small>{c.contenido}</div>}
         <details className="editar">
-          <summary>{c.contenido ? "Editar sesión" : "+ Preparar sesión"}</summary>
+          <summary>{c.contenido ? "Editar sesión y plazas" : "+ Preparar sesión y plazas"}</summary>
           <form action={guardarSesion}>
             <input type="hidden" name="grupo" value={c.grupo.id} />
             <input type="hidden" name="fecha" value={c.fecha} />
             <input type="hidden" name="ruta" value={ruta} />
             <textarea name="contenido" rows={3} defaultValue={c.contenido} placeholder="Ej. bandeja cruzada y salida de pared" aria-label="Contenido de la sesión" />
             <Boton className="btn prim">Guardar sesión</Boton>
+          </form>
+          <form action={guardarMax} className="fila" style={{ alignItems: "end", marginTop: 10 }}>
+            <input type="hidden" name="grupo" value={c.grupo.id} />
+            <input type="hidden" name="ruta" value={ruta} />
+            <label className="meta" style={{ display: "grid", gap: 4 }}>Máximo de alumnos del grupo
+              <input name="max" type="number" min="1" max="12" className="campo" defaultValue={max} />
+            </label>
+            <Boton className="btn">Guardar máximo</Boton>
           </form>
         </details>
       </div>

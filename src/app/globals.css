@@ -183,3 +183,32 @@ textarea:focus, .campo:focus { outline: 2px solid var(--pista-2); outline-offset
   animation: brillo 1.2s ease-in-out infinite; border-radius: var(--r); }
 @keyframes brillo { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; } }
+
+/* Administración y formularios */
+.app.ancha { max-width: 760px; }
+.form { display: grid; gap: 12px; }
+.form label { display: grid; gap: 4px; font-size: .8rem; font-weight: 600; color: var(--muted); }
+.form .campo, .form select, .form textarea { font-size: .95rem; padding: 10px 12px; border-radius: 12px; }
+select.campo { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 32px; }
+.fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.checks label { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; font-weight: 500; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--linea); border-radius: 99px; padding: 6px 10px; cursor: pointer; }
+.checks input { accent-color: var(--pista-2); }
+details.bloque { background: var(--card); border: 1px solid var(--linea); border-radius: var(--r); }
+details.bloque > summary { list-style: none; padding: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+details.bloque > summary::-webkit-details-marker { display: none; }
+details.bloque > summary::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 1.3rem; transition: transform .15s; }
+details.bloque[open] > summary::after { transform: rotate(90deg); }
+details.bloque > .form, details.bloque > .contenido { padding: 0 14px 14px; }
+.tit-seccion { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; scroll-margin-top: 90px; }
+.tit-seccion h2 { font-size: 1.1rem; }
+.fila-club { display: flex; align-items: center; gap: 12px; }
+.fila-club .marca { width: 42px; height: 42px; }
+.cifras { display: flex; gap: 14px; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cifras b { color: var(--fg); }
+.codigo-club { font-family: var(--display); font-weight: 600; letter-spacing: .1em; background: var(--pelota-suave); padding: 2px 8px; border-radius: 6px; }
+.texto-ficha { white-space: pre-wrap; }
+.aviso-lesion { background: var(--mal-suave); color: var(--mal); border-radius: 12px; padding: 10px 12px; font-size: .88rem; display: grid; gap: 2px; }
+.aviso-lesion small { font-weight: 700; text-transform: uppercase; font-size: .68rem; letter-spacing: .06em; }

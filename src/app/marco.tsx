@@ -11,6 +11,7 @@ export const Icono = {
   profe: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /></svg>),
   reloj: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>),
   pelota: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><circle cx="12" cy="12" r="8.5" /><path d="M5 6.5c3 2 3 9 0 11M19 6.5c-3 2-3 9 0 11" /></svg>),
+  grupo: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><circle cx="9" cy="8.5" r="3.3" /><path d="M3 19.5a6 6 0 0 1 12 0" /><circle cx="17" cy="9.5" r="2.6" /><path d="M16 14.2a5 5 0 0 1 5.5 5" /></svg>),
   atras: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden width="20" height="20"><path d="M15 5l-7 7 7 7" /></svg>),
   adelante: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden width="20" height="20"><path d="M9 5l7 7-7 7" /></svg>),
 };
@@ -42,10 +43,11 @@ export function Aviso({ ok, error }: { ok?: string; error?: string }) {
   return null;
 }
 
-export function Nav({ alumno, activa }: { alumno: boolean; activa: "semana" | "recuperar" | "perfil" }) {
+export function Nav({ rol, activa }: { rol: string; activa: "semana" | "recuperar" | "perfil" | "alumnos" }) {
   const items = [
     { k: "semana", t: "Semana", href: "/semana", I: Icono.semana },
-    ...(alumno ? [{ k: "recuperar", t: "Recuperar", href: "/recuperar", I: Icono.recuperar }] : []),
+    ...(rol === "alumno" ? [{ k: "recuperar", t: "Recuperar", href: "/recuperar", I: Icono.recuperar }] : []),
+    ...(rol === "profe" ? [{ k: "alumnos", t: "Alumnos", href: "/alumnos", I: Icono.grupo }] : []),
     { k: "perfil", t: "Perfil", href: "/perfil", I: Icono.perfil },
   ];
   return (

@@ -4,10 +4,14 @@ import { diaSemana, inicioClase, iso, sumarDias, lunesDe } from "./fechas";
 
 export type Rol = "alumno" | "profe" | "admin";
 export interface Club { id: string; slug: string; codigo: string; nombre: string; horasBaja: number; diasCaducidad: number; maxAlumnos: number }
-export interface Usuario { id: string; clubId: string; nombre: string; rol: Rol; nivel?: string }
+export interface Usuario { id: string; clubId: string; nombre: string; rol: Rol; nivel?: string; email?: string; activo?: boolean }
+export interface Ficha { lesiones: string; trabajado: string; aTrabajar: string; actualizado?: string }
+/** Persona dada de alta que quizá aún no ha entrado nunca (solo la ve administración) */
+export interface Invitacion { email: string; clubId: string; nombre: string; rol: Rol; nivel?: string; grupos: string[] }
 export interface Grupo {
   id: string; clubId: string; nombre: string; nivel: string; profeId: string;
   dia: number; hora: string; duracion: number; pista: string; alumnos: string[];
+  max?: number; // máximo de alumnos de este grupo (si no, el del club)
 }
 export interface Baja { id: string; alumnoId: string; grupoId: string; fecha: string }
 export interface Credito { id: string; alumnoId: string; bajaId: string; caduca: string; usado: boolean }
@@ -18,6 +22,7 @@ export interface Db {
   clubs: Club[]; usuarios: Usuario[]; grupos: Grupo[];
   sesiones: Record<string, string>; // `${grupoId}|${fecha}` -> contenido
   bajas: Baja[]; creditos: Credito[]; recuperaciones: Recuperacion[];
+  fichas: Record<string, Ficha>; invitaciones: Invitacion[];
 }
 
 /** Una clase concreta = grupo + fecha */
@@ -34,6 +39,7 @@ export function consultas(db: Db) {
   const usuario = (id: string) => db.usuarios.find((u) => u.id === id);
   const club = (id: string) => db.clubs.find((c) => c.id === id)!;
   const grupo = (id: string) => db.grupos.find((x) => x.id === id);
+  const maxDe = (g: Grupo) => g.max ?? club(g.clubId).maxAlumnos;
   const usuariosDeClub = (clubId: string) => db.usuarios.filter((u) => u.clubId === clubId);
 
   function clase(grupoId: string, fecha: string): Clase | undefined {
@@ -75,14 +81,13 @@ export function consultas(db: Db) {
     const creds = creditosDisponibles(alumnoId);
     if (!creds.length) return [];
     const hasta = creds.map((c) => c.caduca).sort().at(-1)!;
-    const max = club(al.clubId).maxAlumnos;
     const out: Clase[] = [];
     for (let f = iso(ahora); f <= hasta; f = sumarDias(f, 1)) {
       for (const gr of db.grupos.filter((x) => x.clubId === al.clubId && x.nivel === al.nivel)) {
         const c = clase(gr.id, f);
         if (!c || c.inicio <= ahora || gr.alumnos.includes(alumnoId)) continue;
         if (c.alumnos.some((a) => a.id === alumnoId) || c.pendientes.some((p) => p.alumnoId === alumnoId)) continue;
-        if (c.alumnos.length + c.pendientes.length >= max) continue;
+        if (c.alumnos.length + c.pendientes.length >= maxDe(gr)) continue;
         out.push(c);
       }
     }
@@ -97,7 +102,30 @@ export function consultas(db: Db) {
     return db.recuperaciones.filter((r) => r.estado === "pendiente" && mis.has(r.grupoId));
   }
 
+  const ficha = (alumnoId: string): Ficha | undefined => db.fichas[alumnoId];
+  /** Alumnos de los grupos de un profe, sin repetir */
+  function alumnosDeProfe(profeId: string): Usuario[] {
+    const ids = new Set(db.grupos.filter((g) => g.profeId === profeId).flatMap((g) => g.alumnos));
+    return [...ids].map((i) => usuario(i)).filter((x): x is Usuario => !!x).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }
+  const gruposDeAlumno = (alumnoId: string) => db.grupos.filter((g) => g.alumnos.includes(alumnoId));
+  const gruposDeClub = (clubId: string) =>
+    db.grupos.filter((g) => g.clubId === clubId).sort((a, b) => a.dia - b.dia || a.hora.localeCompare(b.hora));
+  /** Todas las personas del club: las que ya han entrado y las dadas de alta que aún no */
+  function personasDeClub(clubId: string) {
+    const dentro = usuariosDeClub(clubId).map((u) => ({
+      email: u.email ?? "", nombre: u.nombre, rol: u.rol, nivel: u.nivel, usuario: u, activo: u.activo !== false,
+      grupos: u.rol === "profe" ? db.grupos.filter((g) => g.profeId === u.id).map((g) => g.id) : gruposDeAlumno(u.id).map((g) => g.id),
+    }));
+    const emails = new Set(dentro.map((p) => p.email.toLowerCase()));
+    const pendientes = db.invitaciones
+      .filter((i) => i.clubId === clubId && !emails.has(i.email.toLowerCase()))
+      .map((i) => ({ ...i, usuario: undefined as Usuario | undefined, activo: true }));
+    return [...dentro, ...pendientes].sort((a, b) => a.rol.localeCompare(b.rol) || a.nombre.localeCompare(b.nombre));
+  }
+
   return {
+    clubs: db.clubs, maxDe, ficha, alumnosDeProfe, gruposDeAlumno, gruposDeClub, personasDeClub,
     usuario, club, grupo, usuariosDeClub, clase, clasesSemana, limiteBaja,
     creditosDisponibles, clasesParaRecuperar, recuperacionesAlumno, pendientesProfe,
   };
@@ -110,8 +138,10 @@ function semilla(): Db {
     { id: "c1", slug: "norte", codigo: "NORTE24", nombre: "Club Pádel Norte", horasBaja: 6, diasCaducidad: 21, maxAlumnos: 4 },
     { id: "c2", slug: "sur", codigo: "SUR24", nombre: "Pádel Sur Academia", horasBaja: 24, diasCaducidad: 14, maxAlumnos: 4 },
   ];
-  const u = (id: string, nombre: string, rol: Rol, nivel?: string, clubId = "c1"): Usuario => ({ id, clubId, nombre, rol, nivel });
+  const u = (id: string, nombre: string, rol: Rol, nivel?: string, clubId = "c1"): Usuario =>
+    ({ id, clubId, nombre, rol, nivel, email: `${nombre.split(" ")[0].toLowerCase()}@ejemplo.com` });
   const usuarios = [
+    u("ad", "Administración", "admin", undefined, ""),
     u("p1", "Manu", "profe"), u("p2", "Sara", "profe"),
     u("a1", "Lucía Martín", "alumno", "Intermedio"), u("a2", "Pablo Ruiz", "alumno", "Intermedio"),
     u("a3", "Marta Gil", "alumno", "Intermedio"), u("a4", "Javi León", "alumno", "Intermedio"),
@@ -137,11 +167,15 @@ function semilla(): Db {
     clubs, usuarios, grupos,
     sesiones: { [`g1|${sumarDias(lunes, 1)}`]: "Bandeja cruzada y salida de pared" },
     bajas: [], creditos: [], recuperaciones: [],
+    fichas: { a1: { lesiones: "Molestias en el codo derecho", trabajado: "Volea de derecha", aTrabajar: "Bandeja y salida de pared" } },
+    invitaciones: [],
   };
 }
 
 const gl = globalThis as unknown as { __db?: Db };
 export const memoria: Db = (gl.__db ??= semilla());
+memoria.fichas ??= {};
+memoria.invitaciones ??= [];
 
 let n = 0;
 const nuevoId = (p: string) => `${p}${Date.now().toString(36)}${(n++).toString(36)}`;
@@ -179,7 +213,7 @@ export const demo = {
     const gr = q.grupo(r.grupoId)!;
     if (gr.profeId !== profeId) return "Esa clase no es tuya.";
     if (aprobar) {
-      if (q.clase(r.grupoId, r.fecha)!.alumnos.length >= q.club(gr.clubId).maxAlumnos) return "La clase ya está completa.";
+      if (q.clase(r.grupoId, r.fecha)!.alumnos.length >= q.maxDe(gr)) return "La clase ya está completa.";
       memoria.creditos.find((c) => c.id === r.creditoId)!.usado = true;
     }
     r.estado = aprobar ? "aprobada" : "rechazada";
@@ -192,4 +226,68 @@ export const demo = {
     memoria.sesiones[`${grupoId}|${fecha}`] = contenido.trim();
     return null;
   },
+
+  // --- Administración (modo prueba) ---
+  guardarClub(id: string | null, c: Omit<Club, "id">): string | null {
+    const otro = memoria.clubs.find((x) => x.id !== id && (x.slug === c.slug || x.codigo === c.codigo));
+    if (otro) return "Ya hay un club con ese enlace o código.";
+    if (id) Object.assign(memoria.clubs.find((x) => x.id === id)!, c);
+    else memoria.clubs.push({ id: nuevoId("c"), ...c });
+    return null;
+  },
+  guardarGrupo(id: string | null, g: Omit<Grupo, "id" | "alumnos">): string | null {
+    // En el formulario el profe viene por email
+    g = { ...g, profeId: memoria.usuarios.find((u) => u.email && u.email === g.profeId && u.clubId === g.clubId)?.id ?? "" };
+    if (id) Object.assign(memoria.grupos.find((x) => x.id === id)!, g);
+    else memoria.grupos.push({ id: nuevoId("g"), alumnos: [], ...g });
+    return null;
+  },
+  borrarGrupo(id: string): string | null {
+    memoria.grupos = memoria.grupos.filter((g) => g.id !== id);
+    return null;
+  },
+  alta(clubId: string, email: string, nombre: string, rol: Rol, nivel?: string): string | null {
+    const e = email.trim().toLowerCase();
+    const u = memoria.usuarios.find((x) => x.email?.toLowerCase() === e);
+    if (u && u.clubId !== clubId) return "Ese email ya está dado de alta en otro club.";
+    if (u) Object.assign(u, { nombre, rol, nivel: nivel || undefined });
+    else memoria.usuarios.push({ id: nuevoId("u"), clubId, email: e, nombre, rol, nivel: nivel || undefined });
+    return null;
+  },
+  grupoAlumno(grupoId: string, email: string, dentro: boolean): string | null {
+    const g = memoria.grupos.find((x) => x.id === grupoId);
+    const u = memoria.usuarios.find((x) => x.email?.toLowerCase() === email.toLowerCase() && x.clubId === g?.clubId);
+    if (!g || !u) return "No encontrado.";
+    g.alumnos = dentro ? [...new Set([...g.alumnos, u.id])] : g.alumnos.filter((a) => a !== u.id);
+    return null;
+  },
+  bajaPersona(clubId: string, email: string): string | null {
+    const u = memoria.usuarios.find((x) => x.email?.toLowerCase() === email.toLowerCase() && x.clubId === clubId);
+    if (!u) return "No encontrado.";
+    memoria.usuarios = memoria.usuarios.filter((x) => x !== u);
+    memoria.grupos.forEach((g) => { g.alumnos = g.alumnos.filter((a) => a !== u.id); if (g.profeId === u.id) g.profeId = ""; });
+    return null;
+  },
+  guardarFicha(profeId: string, alumnoId: string, f: Ficha): string | null {
+    const p = memoria.usuarios.find((x) => x.id === profeId);
+    const a = memoria.usuarios.find((x) => x.id === alumnoId);
+    if (!p || !a || p.rol !== "profe" || p.clubId !== a.clubId) return "Solo los profes del club pueden editar la ficha.";
+    memoria.fichas[alumnoId] = { ...f, actualizado: new Date().toISOString() };
+    return null;
+  },
+  cambiarActivo(clubId: string, email: string, activo: boolean): string | null {
+    const u = memoria.usuarios.find((x) => x.email?.toLowerCase() === email.toLowerCase() && x.clubId === clubId);
+    if (!u) return "No encontrado.";
+    u.activo = activo;
+    if (!activo) memoria.grupos.forEach((g) => { g.alumnos = g.alumnos.filter((a) => a !== u.id); });
+    return null;
+  },
+  maxGrupo(profeId: string, grupoId: string, max: number): string | null {
+    const g = memoria.grupos.find((x) => x.id === grupoId);
+    if (!g || g.profeId !== profeId) return "Esa clase no es tuya.";
+    g.max = Math.max(1, max);
+    return null;
+  },
 };
+
+export type Persona = ReturnType<Consultas["personasDeClub"]>[number];

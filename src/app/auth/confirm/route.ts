@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
     : tokenHash && type
       ? await s.auth.verifyOtp({ token_hash: tokenHash, type })
       : { error: new Error("sin código") };
-  if (!error) return NextResponse.redirect(new URL("/semana", url));
+  const next = url.searchParams.get("next") === "/admin" ? "/admin" : "/semana";
+  if (!error) return NextResponse.redirect(new URL(next, url));
   const club = await clubElegido();
   const msg = encodeURIComponent("El enlace ha caducado o ya se usó. Pide otro.");
   return NextResponse.redirect(new URL(club ? `/c/${club.slug}?error=${msg}` : "/", url));

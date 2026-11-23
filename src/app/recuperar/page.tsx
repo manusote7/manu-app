@@ -14,7 +14,6 @@ export default async function Recuperar({ searchParams }: { searchParams: Promis
   const { error } = await searchParams;
   const creditos = d.creditosDisponibles(u.id);
   const clases = d.clasesParaRecuperar(u.id);
-  const max = d.club(u.clubId).maxAlumnos;
   return (
     <main className="app">
       <Aviso error={error} />
@@ -30,7 +29,7 @@ export default async function Recuperar({ searchParams }: { searchParams: Promis
             </p>
             {clases.length === 0 && <Vacio titulo="Ahora no hay plazas libres" texto="Vuelve a mirar en unos días." />}
             {clases.map((c) => {
-              const libres = max - c.alumnos.length - c.pendientes.length;
+              const libres = d.maxDe(c.grupo) - c.alumnos.length - c.pendientes.length;
               return (
                 <form key={c.grupo.id + c.fecha} action={pedirRecuperacion} className="clase">
                   <input type="hidden" name="grupo" value={c.grupo.id} />
@@ -54,7 +53,7 @@ export default async function Recuperar({ searchParams }: { searchParams: Promis
           </>
         )}
       </div>
-      <Nav alumno activa="recuperar" />
+      <Nav rol="alumno" activa="recuperar" />
     </main>
   );
 }
