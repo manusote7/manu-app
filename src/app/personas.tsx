@@ -117,17 +117,22 @@ export function FormAlta({ club, grupos, niveles, ruta, puedeProfe }: { club: st
 }
 
 /** Pegar una lista de alumnos (uno por línea) y darlos de alta de una vez */
-export function FormAltaVarios({ club, grupos, niveles, ruta }: { club: string; grupos: Grupo[]; niveles: string[]; ruta: string }) {
+export function FormAltaVarios({ club, grupos, niveles, ruta, puedeProfe }: { club: string; grupos: Grupo[]; niveles: string[]; ruta: string; puedeProfe?: boolean }) {
   return (
     <details className="bloque">
-      <summary><b>+ Dar de alta a varios alumnos</b><span className="meta">Pega una lista</span></summary>
+      <summary><b>+ Dar de alta a varios {puedeProfe ? "(alumnos o profesores)" : "alumnos"}</b><span className="meta">Pega una lista</span></summary>
       <form action={altaVarios} className="form">
         <input type="hidden" name="club" value={club} />
         <input type="hidden" name="ruta" value={ruta} />
-        <label>Un alumno por línea: nombre y email
+        {puedeProfe && (
+          <label>Son
+            <select name="rol" className="campo" defaultValue="alumno"><option value="alumno">Alumnos</option><option value="profe">Profesores</option></select>
+          </label>
+        )}
+        <label>Una persona por línea: nombre y email
           <textarea name="lista" rows={6} required placeholder={"Lucía Martín, lucia@email.com\nPablo Ruiz, pablo@email.com"} />
         </label>
-        <label>Nivel de todos
+        <label>Nivel de todos (alumnos)
           <select name="nivel" className="campo" defaultValue="">
             <option value="">Sin nivel</option>
             {niveles.map((n) => <option key={n} value={n}>{n}</option>)}

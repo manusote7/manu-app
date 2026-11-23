@@ -383,9 +383,10 @@ export async function entrarCodigo(form: FormData) {
 /** Alta de varios alumnos a la vez: una línea por persona, "Nombre, email" (también vale copiado de Excel) */
 export async function altaVarios(form: FormData) {
   const club = txt(form, "club");
-  await gestor(club);
-  const nivel = txt(form, "nivel") || undefined;
-  const grupos = form.getAll("grupos").map(String);
+  const { admin } = await gestor(club);
+  const rol: Rol = admin && txt(form, "rol") === "profe" ? "profe" : "alumno";
+  const nivel = rol === "alumno" ? txt(form, "nivel") || undefined : undefined;
+  const grupos = rol === "alumno" ? form.getAll("grupos").map(String) : [];
   const lineas = txt(form, "lista").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const malas: string[] = [];
   let hechas = 0;
@@ -393,10 +394,11 @@ export async function altaVarios(form: FormData) {
     const email = l.match(/[^\s,;<>\t]+@[^\s,;<>\t]+\.[^\s,;<>\t]+/)?.[0]?.toLowerCase();
     const nombre = l.replace(email ?? "", "").replace(/[<>,;\t]+/g, " ").replace(/\s+/g, " ").trim() || email?.split("@")[0] || "";
     if (!email) { malas.push(l); continue; }
-    let err = await a.alta(club, email, nombre, "alumno", nivel);
+    let err = await a.alta(club, email, nombre, rol, nivel);
     for (const g of grupos) err ??= await a.grupoAlumno(g, email, true);
     if (err) malas.push(`${l} (${err})`); else hechas++;
   }
-  const ok = `${hechas} ${hechas === 1 ? "alumno dado" : "alumnos dados"} de alta.`;
+  const quien = rol === "profe" ? ["profesor dado", "profesores dados"] : ["alumno dado", "alumnos dados"];
+  const ok = `${hechas} ${hechas === 1 ? quien[0] : quien[1]} de alta.`;
   volver(rutaGestion(form, club), malas.length ? `${ok} No se pudo con: ${malas.slice(0, 5).join(" · ")}${malas.length > 5 ? "…" : ""}` : null, ok);
 }
