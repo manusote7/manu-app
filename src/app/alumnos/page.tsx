@@ -1,5 +1,4 @@
 // Profe: sus alumnos, altas y grupos.
-export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";

@@ -1,5 +1,4 @@
 // Chats de clase: uno por grupo, con su profesor y sus alumnos.
-export const instant = false;
 
 import Link from "next/link";
 import { datos, mensajes } from "@/lib/repo";

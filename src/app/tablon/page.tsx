@@ -1,5 +1,4 @@
 // Tablón de anuncios del club: lo leen todos, publican profes y administración.
-export const instant = false;
 
 import { datos } from "@/lib/repo";
 import { yo } from "@/lib/sesion";

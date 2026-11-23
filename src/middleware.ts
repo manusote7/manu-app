@@ -1,8 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// middleware.ts (y no proxy.ts) porque Cloudflare/OpenNext solo soporta bien el middleware de tipo edge.
 // Renueva la sesión de Supabase en cada petición para que no caduque.
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   let res = NextResponse.next({ request });

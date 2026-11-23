@@ -1,4 +1,3 @@
-export const instant = false;
 
 import { yo, clubElegido } from "@/lib/sesion";
 import { datos } from "@/lib/repo";

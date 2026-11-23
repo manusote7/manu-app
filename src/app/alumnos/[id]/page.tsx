@@ -1,5 +1,4 @@
 // Profe: ficha de un alumno.
-export const instant = false;
 
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";

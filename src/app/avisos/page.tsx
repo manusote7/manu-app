@@ -1,5 +1,4 @@
 // Avisos dentro de la app. Al abrir esta pantalla quedan como leídos.
-export const instant = false;
 
 import Link from "next/link";
 import { acciones as a, datos } from "@/lib/repo";

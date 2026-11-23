@@ -1,0 +1,41 @@
+# Copia de seguridad semanal de la base de datos de Supabase (el plan gratis no hace copias).
+# La copia va cifrada con BACKUP_PASSWORD y se guarda 90 días como artefacto de GitHub Actions.
+# Para recuperarla: descargar el artefacto, `gpg -d copia.dump.gpg > copia.dump` y `pg_restore`.
+name: Copia de seguridad
+
+on:
+  schedule:
+    - cron: "41 3 * * 0" # domingos a las 03:41 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  copia:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Volcar y cifrar la base de datos
+        env:
+          # Cadena de conexión "Session pooler" de Supabase (Connect > Session pooler), con la contraseña.
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASS: ${{ secrets.BACKUP_PASSWORD }}
+        run: |
+          test -n "$DB_URL" -a -n "$PASS" || { echo "Faltan los secretos SUPABASE_DB_URL o BACKUP_PASSWORD"; exit 1; }
+          f="manu-app-$(date -u +%Y-%m-%d).dump"
+          docker run --rm -e DB_URL postgres:17 sh -c 'pg_dump "$DB_URL" --format=custom --no-owner --no-privileges --schema=public --schema=auth' > "$f"
+          test -s "$f"
+          echo "Copia: $(du -h "$f" | cut -f1)"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASS" --symmetric --cipher-algo AES256 -o "$f.gpg" "$f"
+          rm "$f"
+          echo "ARCHIVO=$f.gpg" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVO }}
+          path: ${{ env.ARCHIVO }}
+          retention-days: 90
+      - name: Mantener activo este flujo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/copia-seguridad.yml/enable" || true

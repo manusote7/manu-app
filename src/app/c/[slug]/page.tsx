@@ -1,5 +1,4 @@
 // Paso 2: la app de un club concreto. Este enlace es el que cada club da a su gente.
-export const instant = false;
 
 import { redirect } from "next/navigation";
 import { clubElegido, conectado } from "@/lib/sesion";

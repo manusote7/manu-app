@@ -1,5 +1,4 @@
 // Profesor: cosas de todo el club (plan de temporada, estadísticas y tablón).
-export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";

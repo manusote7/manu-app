@@ -1,4 +1,3 @@
-export const instant = false;
 
 import { modoSupabase } from "@/lib/supabase";
 import { entrarEmail, entrarAdminPrueba } from "../../acciones";

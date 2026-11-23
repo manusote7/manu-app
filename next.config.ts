@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
-};
+// Sin Cache Components: Cloudflare (OpenNext) aún no los soporta bien. Todas las pantallas son dinámicas.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

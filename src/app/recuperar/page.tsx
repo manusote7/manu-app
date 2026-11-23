@@ -1,5 +1,4 @@
 // Pantalla con datos por usuario: se genera en cada petición.
-export const instant = false;
 
 import { datos } from "@/lib/repo";
 import { fechaCorta, horaFin, nombreDia } from "@/lib/fechas";

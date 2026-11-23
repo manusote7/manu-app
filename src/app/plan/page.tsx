@@ -1,5 +1,4 @@
 // Plan de temporada: qué se trabaja cada semana en cada nivel. Lo preparan los profesores.
-export const instant = false;
 
 import Link from "next/link";
 import { redirect } from "next/navigation";

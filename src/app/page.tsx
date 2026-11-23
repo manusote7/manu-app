@@ -1,5 +1,4 @@
 // Paso 1: entrar al club con su código.
-export const instant = false;
 
 import { redirect } from "next/navigation";
 import { clubElegido } from "@/lib/sesion";

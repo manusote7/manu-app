@@ -1,5 +1,4 @@
 // Pantalla con datos por usuario: se genera en cada petición.
-export const instant = false;
 
 import Link from "next/link";
 import type { Clase, Usuario, Recuperacion, Consultas } from "@/lib/datos";

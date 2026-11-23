@@ -1,4 +1,3 @@
-export const instant = false;
 
 import { redirect } from "next/navigation";
 import { datos } from "@/lib/repo";
