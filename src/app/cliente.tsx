@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 
 /** Botón de formulario que muestra que está trabajando y no se puede pulsar dos veces. */
@@ -42,4 +43,20 @@ export function Dias({ dias, inicial, paneles }: { dias: DiaInfo[]; inicial: str
       <div className="dias-panel">{paneles[sel]}</div>
     </>
   );
+}
+
+/** Vuelve a pedir la pantalla cada pocos segundos mientras está a la vista (para el chat). */
+export function Refrescar({ cada = 8 }: { cada?: number }) {
+  const router = useRouter();
+  useEffect(() => {
+    const t = setInterval(() => { if (document.visibilityState === "visible") router.refresh(); }, cada * 1000);
+    return () => clearInterval(t);
+  }, [router, cada]);
+  return null;
+}
+
+/** Al abrir el chat, baja hasta el último mensaje. */
+export function AlFinal() {
+  useEffect(() => { document.getElementById("fin")?.scrollIntoView({ block: "end" }); }, []);
+  return null;
 }

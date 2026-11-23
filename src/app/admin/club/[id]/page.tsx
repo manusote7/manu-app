@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { datos } from "@/lib/repo";
 import { yoAdmin } from "@/lib/sesion";
-import { guardarClub, guardarGrupo, borrarGrupo, marcaClub, publicarAnuncio, guardarNivel, moverNivel, borrarNivel } from "../../../acciones";
+import { cuotaClub, guardarClub, guardarGrupo, borrarGrupo, marcaClub, publicarAnuncio, guardarNivel, moverNivel, borrarNivel } from "../../../acciones";
 import { Aviso, EstiloClub, Icono, Marca } from "../../../marco";
 import { Boton } from "../../../cliente";
 import { CamposClub, CamposGrupo, DIAS } from "../../campos";
@@ -39,7 +39,7 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
         </div>
       </header>
       <nav className="pestanas" aria-label="Secciones del club">
-        <a href="#niveles">Niveles</a><a href="#grupos">Grupos</a><a href="#personas">Personas</a>
+        <Link href={`/admin/club/${id}/estadisticas`}>Estadísticas</Link><a href="#niveles">Niveles</a><a href="#grupos">Grupos</a><a href="#personas">Personas</a>
       </nav>
       <div className="body" style={{ paddingBottom: 40 }}>
         <details className="bloque">
@@ -48,6 +48,19 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
             <input type="hidden" name="id" value={club.id} />
             <CamposClub c={club} />
             <div><Boton className="btn prim">Guardar</Boton></div>
+          </form>
+        </details>
+
+        <details className="bloque">
+          <summary><b>Cuota</b><span className="meta">{club.cuotaMensual !== undefined ? `${club.cuotaMensual} €/mes` : "Sin cuota"} · solo la ves tú</span></summary>
+          <form action={cuotaClub} className="form">
+            <input type="hidden" name="club" value={id} />
+            <div className="fila">
+              <label>Cuota mensual (€)<input name="mensual" inputMode="decimal" className="campo" defaultValue={club.cuotaMensual} placeholder="49" /></label>
+              <label>Configuración (€, una vez)<input name="alta" inputMode="decimal" className="campo" defaultValue={club.cuotaAlta} placeholder="150" /></label>
+              <label>Cliente desde<input name="desde" type="date" className="campo" defaultValue={club.clienteDesde} /></label>
+            </div>
+            <div><Boton className="btn prim">Guardar cuota</Boton></div>
           </form>
         </details>
 

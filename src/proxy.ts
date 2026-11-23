@@ -6,7 +6,16 @@ export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   let res = NextResponse.next({ request });
-  if (!url || !key) return res;
+  // Al abrir los avisos, el recordatorio de las clases de mañana queda visto por hoy
+  const visto = (r: NextResponse) => {
+    if (request.nextUrl.pathname === "/avisos") {
+      const d = new Date();
+      const p = (n: number) => String(n).padStart(2, "0");
+      r.cookies.set("rec_visto", `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, { path: "/", maxAge: 60 * 60 * 48, sameSite: "lax" });
+    }
+    return r;
+  };
+  if (!url || !key) return visto(res);
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll: () => request.cookies.getAll(),
@@ -19,7 +28,7 @@ export async function proxy(request: NextRequest) {
   });
   // getClaims comprueba la sesión sin ir al servidor de Supabase si las claves son asimétricas
   await supabase.auth.getClaims();
-  return res;
+  return visto(res);
 }
 
 export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };

@@ -44,7 +44,7 @@ export default async function Tablon({ searchParams }: { searchParams: Promise<{
           </div>
         ))}
       </div>
-      <Nav rol={u.rol} activa="semana" />
+      <Nav rol={u.rol} activa={u.rol === "profe" ? "club" : "semana"} />
     </main>
   );
 }

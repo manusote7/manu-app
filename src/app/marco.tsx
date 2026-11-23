@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { iso } from "@/lib/fechas";
 import { clubElegido } from "@/lib/sesion";
 import { datos } from "@/lib/repo";
 import type { Club, Usuario } from "@/lib/datos";
@@ -16,6 +18,8 @@ export const Icono = {
   grupo: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><circle cx="9" cy="8.5" r="3.3" /><path d="M3 19.5a6 6 0 0 1 12 0" /><circle cx="17" cy="9.5" r="2.6" /><path d="M16 14.2a5 5 0 0 1 5.5 5" /></svg>),
   campana: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden width="20" height="20"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>),
   megafono: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><path d="M4 10v4h3l7 4V6L7 10z" /><path d="M17.5 9a4 4 0 0 1 0 6" /></svg>),
+  chat: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><path d="M4.5 5.5h15v10h-9l-4.5 3.5v-3.5h-1.5z" /><path d="M8.5 9.5h7M8.5 12.5h4" /></svg>),
+  club: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><path d="M4 20V10l8-5.5 8 5.5v10" /><path d="M9.5 20v-5.5h5V20" /></svg>),
   atras: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden width="20" height="20"><path d="M15 5l-7 7 7 7" /></svg>),
   adelante: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden width="20" height="20"><path d="M9 5l7 7-7 7" /></svg>),
 };
@@ -43,7 +47,9 @@ export async function Cabecera({ titulo, u, children }: { titulo: string; u?: Us
   const elegido = await clubElegido();
   const d = await datos();
   const club = elegido ? d.clubs.find((c) => c.id === elegido.id) : undefined;
-  const sinLeer = u ? d.avisosDe(u.id).filter((a) => !a.leido).length : 0;
+  const hoy = iso(new Date());
+  const recordatorio = u && (await cookies()).get("rec_visto")?.value !== hoy ? d.clasesManana(u, hoy).length : 0;
+  const sinLeer = u ? d.avisosDe(u.id).filter((a) => !a.leido).length + recordatorio : 0;
   return (
     <header className="cab">
       <EstiloClub club={club} />
@@ -71,11 +77,13 @@ export function Aviso({ ok, error }: { ok?: string; error?: string }) {
   return null;
 }
 
-export function Nav({ rol, activa }: { rol: string; activa: "semana" | "recuperar" | "perfil" | "alumnos" }) {
+export function Nav({ rol, activa }: { rol: string; activa: "semana" | "recuperar" | "perfil" | "alumnos" | "chat" | "club" }) {
   const items = [
     { k: "semana", t: "Semana", href: "/semana", I: Icono.semana },
     ...(rol === "alumno" ? [{ k: "recuperar", t: "Recuperar", href: "/recuperar", I: Icono.recuperar }] : []),
     ...(rol === "profe" ? [{ k: "alumnos", t: "Alumnos", href: "/alumnos", I: Icono.grupo }] : []),
+    { k: "chat", t: "Chat", href: "/chat", I: Icono.chat },
+    ...(rol === "profe" ? [{ k: "club", t: "Club", href: "/club", I: Icono.club }] : []),
     { k: "perfil", t: "Perfil", href: "/perfil", I: Icono.perfil },
   ];
   return (

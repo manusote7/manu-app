@@ -6,7 +6,7 @@ import type { Clase, Usuario, Recuperacion, Consultas } from "@/lib/datos";
 import { datos } from "@/lib/repo";
 import { fechaCorta, formatoLimite, horaFin, iso, letraDia, lunesDe, nombreDia, sumarDias, deIso } from "@/lib/fechas";
 import { yo } from "@/lib/sesion";
-import { cancelarClase, darBaja, guardarMax, guardarSesion, pasarLista, resolver } from "../acciones";
+import { cancelarClase, colocarAlumno, darBaja, guardarMax, guardarSesion, pasarLista, resolver } from "../acciones";
 import { Aviso, Cabecera, Icono, Nav, Vacio, iniciales } from "../marco";
 import { Boton, Dias } from "../cliente";
 
@@ -60,6 +60,7 @@ export default async function MiSemana({ searchParams }: { searchParams: SP }) {
 
       <div className="body">
         {esProfe ? <Solicitudes profeId={u.id} d={d} ruta={`/semana?d=${dia}`} /> : <Creditos alumnoId={u.id} d={d} />}
+        <Manana u={u} d={d} hoy={hoy} />
         <TablonResumen u={u} d={d} />
         <Dias
           inicial={dia}
@@ -137,7 +138,9 @@ function ClaseAlumno({ c, u, d, recs, hoy }: { c: Clase; u: Usuario; d: Consulta
           {deBaja ? <span className="pill gris">De baja</span> : pasada ? <span className={`pill ${vino === false ? "warn" : "gris"}`}>{vino === false ? "No viniste" : vino ? "Asististe" : "Hecha"}</span> : <span className="pill nivel">{c.grupo.nivel}</span>}
         </div>
         <Datos c={c} profe={profe} />
-        {c.contenido && <div className="sesion"><small>Qué vais a trabajar</small>{c.contenido}</div>}
+        {c.contenido
+          ? <div className="sesion"><small>Qué vais a trabajar</small>{c.contenido}</div>
+          : <Plan c={c} d={d} />}
         {!deBaja && !pasada && (
           ahora <= limite ? (
             <form action={darBaja} className="acciones">
@@ -262,11 +265,13 @@ function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
           )}
         </form>
         {c.contenido && <div className="sesion"><small>Sesión</small>{c.contenido}</div>}
+        <Plan c={c} d={d} />
+        {!empezada && <Colocar c={c} d={d} ruta={ruta} />}
         <details className="editar">
           <summary>{c.contenido ? "Editar sesión y plazas" : "+ Preparar sesión y plazas"}</summary>
           <form action={guardarSesion}>
             {ocultos}
-            <textarea name="contenido" rows={3} defaultValue={c.contenido} placeholder="Ej. bandeja cruzada y salida de pared" aria-label="Contenido de la sesión" />
+            <textarea name="contenido" rows={3} defaultValue={c.contenido ?? d.planDe(c.grupo.clubId, c.grupo.nivel, c.fecha)} placeholder="Ej. bandeja cruzada y salida de pared" aria-label="Contenido de la sesión" />
             <Boton className="btn prim">Guardar sesión</Boton>
           </form>
           <form action={guardarMax} className="fila" style={{ alignItems: "end", marginTop: 10 }}>
@@ -303,6 +308,52 @@ function TablonResumen({ u, d }: { u: Usuario; d: Consultas }) {
     <Link href="/tablon" className="card anuncio">
       <div className="card-cab"><span className="seccion">Tablón del club</span><span className="meta">{anuncios.length > 1 ? `Ver los ${anuncios.length} ›` : "Ver ›"}</span></div>
       {a ? <p className="anuncio-txt">{a.texto}</p> : <p className="meta">Publica avisos para todo el club.</p>}
+    </Link>
+  );
+}
+
+/** Lo que toca esta semana según el plan de temporada del nivel */
+function Plan({ c, d }: { c: Clase; d: Consultas }) {
+  const p = d.planDe(c.grupo.clubId, c.grupo.nivel, c.fecha);
+  if (!p) return null;
+  return <div className="sesion plan"><small>Plan de la semana · {c.grupo.nivel}</small>{p}</div>;
+}
+
+/** El profesor pone en esta clase a un alumno del mismo nivel (si hay hueco) */
+function Colocar({ c, d, ruta }: { c: Clase; d: Consultas; ruta: string }) {
+  const lista = d.candidatosColocar(c);
+  if (!lista.length) return null;
+  return (
+    <details className="editar">
+      <summary>+ Poner a un alumno en esta clase</summary>
+      <form action={colocarAlumno} className="fila" style={{ alignItems: "end" }}>
+        <input type="hidden" name="grupo" value={c.grupo.id} />
+        <input type="hidden" name="fecha" value={c.fecha} />
+        <input type="hidden" name="ruta" value={ruta} />
+        <label className="meta" style={{ display: "grid", gap: 4 }}>Alumno de {c.grupo.nivel}
+          <select name="alumno" className="campo" required defaultValue="">
+            <option value="" disabled>Elige alumno</option>
+            {lista.map((a) => <option key={a.id} value={a.id}>{a.nombre}{a.recupera ? " (tiene recuperación)" : ""}</option>)}
+          </select>
+        </label>
+        <Boton className="btn prim">Poner en la clase</Boton>
+      </form>
+      <p className="meta">Si tiene una recuperación pendiente, se le gasta. Le llegará un aviso.</p>
+    </details>
+  );
+}
+
+/** Recordatorio de las clases de mañana */
+function Manana({ u, d, hoy }: { u: Usuario; d: Consultas; hoy: string }) {
+  const cs = d.clasesManana(u, hoy);
+  if (!cs.length) return null;
+  return (
+    <Link href={`/semana?d=${sumarDias(hoy, 1)}`} className="banner recordatorio">
+      <Icono.reloj />
+      <div>
+        <b>Mañana {u.rol === "profe" ? "das" : "tienes"} {cs.length === 1 ? "clase" : `${cs.length} clases`}</b>
+        <p className="meta" style={{ color: "inherit" }}>{cs.map((c) => `${c.grupo.nombre} a las ${c.grupo.hora}`).join(" · ")}</p>
+      </div>
     </Link>
   );
 }

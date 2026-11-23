@@ -316,3 +316,49 @@ export async function borrarNivel(form: FormData) {
   const err = await a.borrarNivel(txt(form, "id"));
   volver(`/admin/club/${club}#niveles`, err, "Nivel borrado.");
 }
+
+// ---------- Colocar alumno, chat, plan y cuotas ----------
+
+export async function colocarAlumno(form: FormData) {
+  const u = await quien();
+  const err = txt(form, "alumno")
+    ? await a.colocarAlumno(u.id, txt(form, "grupo"), txt(form, "fecha"), txt(form, "alumno"))
+    : "Elige un alumno.";
+  volver(txt(form, "ruta") || "/semana", err, "Alumno puesto en la clase. Le hemos avisado.");
+}
+
+export async function enviarMensaje(form: FormData) {
+  const u = await quien();
+  const grupo = txt(form, "grupo");
+  const err = await a.enviarMensaje(u.id, grupo, txt(form, "texto"));
+  revalidatePath("/", "layout");
+  redirect(`/chat/${grupo}${err ? `?error=${encodeURIComponent(err)}` : ""}#fin`);
+}
+
+export async function borrarMensaje(form: FormData) {
+  const u = await quien();
+  const grupo = txt(form, "grupo");
+  const err = await a.borrarMensaje(u.id, txt(form, "id"));
+  volver(`/chat/${grupo}`, err, "Mensaje borrado.");
+}
+
+export async function guardarPlan(form: FormData) {
+  const u = await quien();
+  const club = u.rol === "admin" ? txt(form, "club") : u.clubId;
+  const nivel = txt(form, "nivel");
+  const semanas = form.getAll("semana").map(String);
+  const textos = form.getAll("texto").map(String);
+  const err = nivel ? await a.guardarPlan(u.id, club, nivel, semanas, textos) : "Elige un nivel.";
+  volver(txt(form, "ruta") || `/plan?nivel=${encodeURIComponent(nivel)}`, err, "Plan guardado.");
+}
+
+export async function cuotaClub(form: FormData) {
+  await yoAdmin();
+  const club = txt(form, "club");
+  const dinero = (k: string) => {
+    const v = parseFloat(txt(form, k).replace(",", "."));
+    return Number.isFinite(v) && v >= 0 ? v : undefined;
+  };
+  const err = await a.cuotaClub(club, dinero("mensual"), dinero("alta"), txt(form, "desde") || undefined);
+  volver(`/admin/club/${club}`, err, "Cuota guardada.");
+}

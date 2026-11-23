@@ -1,13 +1,17 @@
 // Punto único de acceso a los datos: Supabase si está configurado, si no los datos de prueba.
 import { cache } from "react";
 import { connection } from "next/server";
-import { consultas, demo, memoria, type Club, type Db, type Estado, type Ficha, type Grupo, type Rol } from "./datos";
+import { consultas, demo, memoria, type Mensaje, type Club, type Db, type Estado, type Ficha, type Grupo, type Rol } from "./datos";
 import { modoSupabase, sb } from "./supabase";
+
+const n = (v: unknown) => (v == null ? undefined : Number(v));
+const cuota = (x?: { mensual: unknown; alta: unknown; cliente_desde: string | null }) =>
+  x ? { cuotaMensual: n(x.mensual), cuotaAlta: n(x.alta), clienteDesde: x.cliente_desde ?? undefined } : {};
 
 /** Lee todo lo del club del usuario conectado. Las reglas de seguridad de Supabase filtran por club. */
 async function foto(): Promise<Db> {
   const s = await sb();
-  const [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs, fichas, invs, asis, canc, notas, anun, avs, nivs] = await Promise.all([
+  const [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs, fichas, invs, asis, canc, notas, anun, avs, nivs, plan, cuotas] = await Promise.all([
     s.from("clubs").select("*"),
     s.from("usuarios").select("*"),
     s.from("grupos").select("*"),
@@ -26,6 +30,8 @@ async function foto(): Promise<Db> {
     s.from("anuncios").select("id, club_id, autor_id, texto, creado_en").order("creado_en", { ascending: false }).limit(50),
     s.from("avisos").select("id, usuario_id, texto, enlace, leido, creado_en").order("creado_en", { ascending: false }).limit(30),
     s.from("niveles").select("id, club_id, nombre, orden"),
+    s.from("plan_semanas").select("club_id, nivel, semana, contenido"), // supabase/07_chat_plan.sql
+    s.from("club_cuotas").select("club_id, mensual, alta, cliente_desde"), // solo administración
   ]);
   const error = [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs].find((r) => r.error)?.error;
   if (error) throw new Error(`No se pudieron leer los datos: ${error.message}`);
@@ -34,6 +40,7 @@ async function foto(): Promise<Db> {
       id: c.id, slug: c.slug, codigo: c.codigo_acceso ?? "", nombre: c.nombre,
       horasBaja: c.horas_antelacion_baja, diasCaducidad: c.dias_caducidad_recuperacion, maxAlumnos: c.max_alumnos_clase,
       color: c.color ?? undefined, logo: c.logo_url ?? undefined, cancelarRecupera: c.cancelar_da_recuperacion ?? true,
+      ...cuota(cuotas.data?.find((x) => x.club_id === c.id)),
     })),
     usuarios: usuarios.data!.map((u) => ({ id: u.id, clubId: u.club_id ?? "", nombre: u.nombre, rol: u.rol, nivel: u.nivel ?? undefined, email: u.email, activo: u.activo !== false })),
     grupos: grupos.data!.map((g) => ({
@@ -45,7 +52,7 @@ async function foto(): Promise<Db> {
     bajas: bajas.data!.map((b) => ({ id: b.id, alumnoId: b.alumno_id, grupoId: b.grupo_id, fecha: b.fecha })),
     creditos: creditos.data!.map((c) => ({ id: c.id, alumnoId: c.alumno_id, bajaId: c.baja_id, caduca: c.caduca, usado: c.usado })),
     recuperaciones: recs.data!.map((r) => ({
-      id: r.id, alumnoId: r.alumno_id, creditoId: r.credito_id, grupoId: r.grupo_id, fecha: r.fecha, estado: r.estado as Estado,
+      id: r.id, alumnoId: r.alumno_id, creditoId: r.credito_id ?? "", grupoId: r.grupo_id, fecha: r.fecha, estado: r.estado as Estado,
     })),
     fichas: Object.fromEntries((fichas.data ?? []).map((f) => [f.alumno_id, {
       lesiones: f.lesiones, trabajado: f.trabajado, aTrabajar: f.a_trabajar, actualizado: f.actualizado_en,
@@ -55,6 +62,8 @@ async function foto(): Promise<Db> {
     notasPrivadas: Object.fromEntries((notas.data ?? []).map((x) => [x.alumno_id, x.texto])),
     anuncios: (anun.data ?? []).map((x) => ({ id: x.id, clubId: x.club_id, autorId: x.autor_id ?? undefined, texto: x.texto, creado: x.creado_en })),
     avisos: (avs.data ?? []).map((x) => ({ id: x.id, usuarioId: x.usuario_id, texto: x.texto, enlace: x.enlace ?? undefined, leido: x.leido, creado: x.creado_en })),
+    plan: Object.fromEntries((plan.data ?? []).map((x) => [`${x.club_id}|${x.nivel}|${x.semana}`, x.contenido])),
+    mensajes: [],
     niveles: (nivs.data ?? []).map((n) => ({ id: n.id, clubId: n.club_id, nombre: n.nombre, orden: n.orden })),
     invitaciones: (invs.data ?? []).map((i) => ({
       email: i.email, clubId: i.club_id ?? "", nombre: i.nombre, rol: i.rol, nivel: i.nivel ?? undefined, grupos: i.grupos ?? [],
@@ -67,6 +76,17 @@ export const datos = cache(async () => {
   await connection(); // siempre en el momento de la petición
   return consultas(modoSupabase ? await foto() : memoria);
 });
+
+/** Últimos mensajes de unos grupos, del más nuevo al más antiguo */
+export async function mensajes(grupos: string[], limite = 100): Promise<Mensaje[]> {
+  if (!grupos.length) return [];
+  if (!modoSupabase) {
+    return memoria.mensajes.filter((m) => grupos.includes(m.grupoId)).sort((a, b) => b.creado.localeCompare(a.creado)).slice(0, limite);
+  }
+  const { data } = await (await sb()).from("mensajes").select("id, grupo_id, autor_id, texto, creado_en")
+    .in("grupo_id", grupos).order("creado_en", { ascending: false }).limit(limite);
+  return (data ?? []).map((m) => ({ id: m.id, grupoId: m.grupo_id, autorId: m.autor_id ?? undefined, texto: m.texto, creado: m.creado_en }));
+}
 
 async function rpc(nombre: string, args: Record<string, unknown>): Promise<string | null> {
   const { error } = await (await sb()).rpc(nombre, args);
@@ -144,5 +164,21 @@ export const acciones = {
     modoSupabase
       ? rpc("admin_guardar_nivel", { p_id: id, p_club: club, p_nombre: nombre, p_orden: orden ?? null })
       : Promise.resolve(demo.guardarNivel(id, club, nombre, orden)),
+  colocarAlumno: (uid: string, grupo: string, fecha: string, alumno: string) =>
+    modoSupabase
+      ? rpc("colocar_alumno", { p_grupo: grupo, p_fecha: fecha, p_alumno: alumno })
+      : Promise.resolve(demo.colocarAlumno(uid, grupo, fecha, alumno)),
+  enviarMensaje: (uid: string, grupo: string, texto: string) =>
+    modoSupabase ? rpc("enviar_mensaje", { p_grupo: grupo, p_texto: texto }) : Promise.resolve(demo.enviarMensaje(uid, grupo, texto)),
+  borrarMensaje: (uid: string, id: string) =>
+    modoSupabase ? rpc("borrar_mensaje", { p_id: id }) : Promise.resolve(demo.borrarMensaje(uid, id)),
+  guardarPlan: (uid: string, club: string, nivel: string, semanas: string[], textos: string[]) =>
+    modoSupabase
+      ? rpc("guardar_plan", { p_club: club, p_nivel: nivel, p_semanas: semanas, p_textos: textos })
+      : Promise.resolve(demo.guardarPlan(uid, club, nivel, semanas, textos)),
+  cuotaClub: (club: string, mensual?: number, alta?: number, desde?: string) =>
+    modoSupabase
+      ? rpc("admin_cuota_club", { p_club: club, p_mensual: mensual ?? null, p_alta: alta ?? null, p_desde: desde || null })
+      : Promise.resolve(demo.cuotaClub(club, mensual, alta, desde)),
   borrarNivel: (id: string) => (modoSupabase ? rpc("admin_borrar_nivel", { p_id: id }) : Promise.resolve(demo.borrarNivel(id))),
 };

@@ -8,6 +8,9 @@ import { guardarClub, salirAdmin } from "../acciones";
 import { Aviso, Marca, Vacio } from "../marco";
 import { Boton } from "../cliente";
 import { CamposClub } from "./campos";
+import { iso } from "@/lib/fechas";
+
+const euros = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: n % 1 ? 2 : 0 });
 
 export default async function Admin({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; enviado?: string }> }) {
   // Sin sesión se muestra el acceso aquí mismo (sin redirigir)
@@ -15,6 +18,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
   const d = await datos();
   const sp = await searchParams;
   const clubs = [...d.clubs].sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const hoy = iso(new Date());
+  const uso = Object.fromEntries(clubs.map((c) => [c.id, d.usoClub(c.id, hoy)]));
+  const mensual = clubs.reduce((t, c) => t + (c.cuotaMensual ?? 0), 0);
+  const altas = clubs.reduce((t, c) => t + (c.cuotaAlta ?? 0), 0);
+  const activos = clubs.reduce((t, c) => t + uso[c.id].activos, 0);
   return (
     <main className="app ancha">
       <Aviso ok={sp.ok} error={sp.error} />
@@ -26,6 +34,14 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
         </div>
       </header>
       <div className="body" style={{ paddingBottom: 40 }}>
+        <p className="seccion">Tu negocio</p>
+        <div className="cifras-grandes">
+          <div><b>{euros(mensual)}</b><span>Al mes</span></div>
+          <div><b>{euros(mensual * 12)}</b><span>Al año</span></div>
+          <div><b>{euros(altas)}</b><span>Configuraciones cobradas</span></div>
+          <div><b>{activos}</b><span>Alumnos activos en {clubs.length} clubs</span></div>
+        </div>
+        <p className="seccion">Clubs</p>
         {clubs.length === 0 && <Vacio titulo="Aún no hay clubs" texto="Crea el primero aquí abajo." />}
         {clubs.map((c) => {
           const personas = d.personasDeClub(c.id);
@@ -39,10 +55,16 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
                 </div>
               </div>
               <div className="cifras">
-                <span><b>{d.gruposDeClub(c.id).length}</b> grupos</span>
+                <span><b>{c.cuotaMensual !== undefined ? euros(c.cuotaMensual) : "–"}</b> al mes</span>
+                <span><b>{uso[c.id].activos}</b> alumnos activos</span>
                 <span><b>{personas.filter((p) => p.rol === "profe").length}</b> profesores</span>
-                <span><b>{personas.filter((p) => p.rol === "alumno").length}</b> alumnos</span>
+                <span><b>{d.gruposDeClub(c.id).length}</b> grupos</span>
               </div>
+              <span className="meta">
+                Uso últimos 30 días: {uso[c.id].listas} listas pasadas · {uso[c.id].bajas} bajas · {uso[c.id].recs} recuperaciones · {uso[c.id].anuncios} anuncios
+                {uso[c.id].sinEntrar > 0 ? ` · ${uso[c.id].sinEntrar} alumnos aún sin entrar` : ""}
+                {c.clienteDesde ? ` · Cliente desde ${c.clienteDesde.split("-").reverse().join("/")}` : ""}
+              </span>
             </Link>
           );
         })}
