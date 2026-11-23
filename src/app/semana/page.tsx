@@ -2,7 +2,8 @@
 export const instant = false;
 
 import Link from "next/link";
-import * as d from "@/lib/datos";
+import type { Clase, Usuario, Recuperacion } from "@/lib/datos";
+import { datos } from "@/lib/repo";
 import { fechaCorta, formatoLimite, horaFin, iso, letraDia, lunesDe, nombreDia, sumarDias, deIso } from "@/lib/fechas";
 import { yo } from "@/lib/sesion";
 import { darBaja, guardarSesion, resolver } from "../acciones";
@@ -11,6 +12,7 @@ import { Aviso, Cabecera, Nav } from "../marco";
 type SP = Promise<{ d?: string; ok?: string; error?: string }>;
 
 export default async function MiSemana({ searchParams }: { searchParams: SP }) {
+  const d = await datos();
   const u = await yo();
   const sp = await searchParams;
   const hoy = iso(new Date());
@@ -23,7 +25,7 @@ export default async function MiSemana({ searchParams }: { searchParams: SP }) {
   const clases = esProfe
     ? d.clasesSemana(lunes, (g) => g.profeId === u.id)
     : d.clasesSemana(lunes, (g) => g.alumnos.includes(u.id) || misRecs.some((r) => r.grupoId === g.id));
-  const delAlumno = (c: d.Clase) =>
+  const delAlumno = (c: Clase) =>
     esProfe || c.grupo.alumnos.includes(u.id) || misRecs.some((r) => r.grupoId === c.grupo.id && r.fecha === c.fecha);
   const semana = clases.filter(delAlumno);
   const delDia = semana.filter((c) => c.fecha === dia);
@@ -63,11 +65,12 @@ export default async function MiSemana({ searchParams }: { searchParams: SP }) {
   );
 }
 
-function Cuando({ c }: { c: d.Clase }) {
+function Cuando({ c }: { c: Clase }) {
   return <span className="time">{c.grupo.hora}–{horaFin(c.grupo.hora, c.grupo.duracion)}</span>;
 }
 
-function ClaseAlumno({ c, u, recs, hoy, ruta }: { c: d.Clase; u: d.Usuario; recs: d.Recuperacion[]; hoy: string; ruta: string }) {
+async function ClaseAlumno({ c, u, recs, hoy, ruta }: { c: Clase; u: Usuario; recs: Recuperacion[]; hoy: string; ruta: string }) {
+  const d = await datos();
   const profe = d.usuario(c.grupo.profeId)?.nombre;
   const rec = recs.find((r) => r.grupoId === c.grupo.id && r.fecha === c.fecha);
   const ahora = new Date();
@@ -107,7 +110,8 @@ function ClaseAlumno({ c, u, recs, hoy, ruta }: { c: d.Clase; u: d.Usuario; recs
   );
 }
 
-function Creditos({ alumnoId }: { alumnoId: string }) {
+async function Creditos({ alumnoId }: { alumnoId: string }) {
+  const d = await datos();
   const cr = d.creditosDisponibles(alumnoId);
   if (!cr.length) return null;
   const primero = cr.map((c) => c.caduca).sort()[0];
@@ -119,7 +123,8 @@ function Creditos({ alumnoId }: { alumnoId: string }) {
   );
 }
 
-function Pendientes({ profeId, ruta }: { profeId: string; ruta: string }) {
+async function Pendientes({ profeId, ruta }: { profeId: string; ruta: string }) {
+  const d = await datos();
   const p = d.pendientesProfe(profeId);
   return p.map((r) => {
     const g = d.grupo(r.grupoId)!;
@@ -137,7 +142,8 @@ function Pendientes({ profeId, ruta }: { profeId: string; ruta: string }) {
   });
 }
 
-function ClaseProfe({ c, ruta }: { c: d.Clase; ruta: string }) {
+async function ClaseProfe({ c, ruta }: { c: Clase; ruta: string }) {
+  const d = await datos();
   const max = d.club(c.grupo.clubId).maxAlumnos;
   const fijos = new Set(c.grupo.alumnos);
   return (

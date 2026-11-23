@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { Usuario } from "@/lib/datos";
-import { club } from "@/lib/datos";
+import { clubElegido } from "@/lib/sesion";
 import { salir } from "./acciones";
 
-export function Cabecera({ u, titulo, children }: { u: Usuario; titulo: string; children?: React.ReactNode }) {
+export async function Cabecera({ u, titulo, children }: { u: Usuario; titulo: string; children?: React.ReactNode }) {
   return (
     <header className="top">
       <div className="club">
-        <span>{club(u.clubId).nombre}</span>
+        <span>{(await clubElegido())?.nombre}</span>
         <form action={salir}><span>{u.nombre} · </span><button>Salir</button></form>
       </div>
       <h1>{titulo}</h1>

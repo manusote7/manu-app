@@ -1,5 +1,5 @@
-// Capa de datos. De momento usa datos de demostración en memoria con las
-// mismas tablas que supabase/schema.sql; se cambiará por Supabase sin tocar las pantallas.
+// Lógica de clases, bajas y recuperaciones sobre una "foto" de los datos del club.
+// La foto viene de Supabase (src/lib/repo.ts) o, sin Supabase, de los datos de prueba en memoria.
 import { diaSemana, inicioClase, iso, sumarDias, lunesDe } from "./fechas";
 
 export type Rol = "alumno" | "profe" | "admin";
@@ -14,11 +14,96 @@ export interface Credito { id: string; alumnoId: string; bajaId: string; caduca:
 export type Estado = "pendiente" | "aprobada" | "rechazada";
 export interface Recuperacion { id: string; alumnoId: string; creditoId: string; grupoId: string; fecha: string; estado: Estado }
 
-interface Db {
+export interface Db {
   clubs: Club[]; usuarios: Usuario[]; grupos: Grupo[];
   sesiones: Record<string, string>; // `${grupoId}|${fecha}` -> contenido
   bajas: Baja[]; creditos: Credito[]; recuperaciones: Recuperacion[];
 }
+
+/** Una clase concreta = grupo + fecha */
+export interface Clase {
+  grupo: Grupo; fecha: string; inicio: Date; contenido?: string;
+  alumnos: Usuario[];          // quién viene (fijos sin baja + recuperaciones aprobadas)
+  bajas: Usuario[];
+  pendientes: Recuperacion[];
+}
+
+export type Consultas = ReturnType<typeof consultas>;
+
+export function consultas(db: Db) {
+  const usuario = (id: string) => db.usuarios.find((u) => u.id === id);
+  const club = (id: string) => db.clubs.find((c) => c.id === id)!;
+  const grupo = (id: string) => db.grupos.find((x) => x.id === id);
+  const usuariosDeClub = (clubId: string) => db.usuarios.filter((u) => u.clubId === clubId);
+
+  function clase(grupoId: string, fecha: string): Clase | undefined {
+    const gr = grupo(grupoId);
+    if (!gr || diaSemana(fecha) !== gr.dia) return;
+    const bajasIds = db.bajas.filter((b) => b.grupoId === gr.id && b.fecha === fecha).map((b) => b.alumnoId);
+    const recs = db.recuperaciones.filter((r) => r.grupoId === gr.id && r.fecha === fecha);
+    const ids = [...gr.alumnos.filter((a) => !bajasIds.includes(a)), ...recs.filter((r) => r.estado === "aprobada").map((r) => r.alumnoId)];
+    const persona = (i: string): Usuario => usuario(i) ?? { id: i, clubId: gr.clubId, nombre: "Alumno", rol: "alumno" };
+    return {
+      grupo: gr, fecha, inicio: inicioClase(fecha, gr.hora), contenido: db.sesiones[`${gr.id}|${fecha}`],
+      alumnos: ids.map(persona), bajas: bajasIds.map(persona),
+      pendientes: recs.filter((r) => r.estado === "pendiente"),
+    };
+  }
+
+  function clasesSemana(lunes: string, filtro: (gr: Grupo) => boolean): Clase[] {
+    const out: Clase[] = [];
+    for (let i = 0; i < 7; i++) {
+      const f = sumarDias(lunes, i);
+      for (const gr of db.grupos.filter(filtro)) {
+        const c = clase(gr.id, f);
+        if (c) out.push(c);
+      }
+    }
+    return out.sort((a, b) => +a.inicio - +b.inicio);
+  }
+
+  const limiteBaja = (c: Clase) => new Date(+c.inicio - club(c.grupo.clubId).horasBaja * 3600_000);
+
+  function creditosDisponibles(alumnoId: string, hoy = iso(new Date())): Credito[] {
+    const usados = new Set(db.recuperaciones.filter((r) => r.estado !== "rechazada").map((r) => r.creditoId));
+    return db.creditos.filter((c) => c.alumnoId === alumnoId && !c.usado && !usados.has(c.id) && c.caduca >= hoy);
+  }
+
+  /** Clases del mismo nivel, con plaza, antes de caducar el crédito y donde el alumno no está ya */
+  function clasesParaRecuperar(alumnoId: string, ahora = new Date()): Clase[] {
+    const al = usuario(alumnoId)!;
+    const creds = creditosDisponibles(alumnoId);
+    if (!creds.length) return [];
+    const hasta = creds.map((c) => c.caduca).sort().at(-1)!;
+    const max = club(al.clubId).maxAlumnos;
+    const out: Clase[] = [];
+    for (let f = iso(ahora); f <= hasta; f = sumarDias(f, 1)) {
+      for (const gr of db.grupos.filter((x) => x.clubId === al.clubId && x.nivel === al.nivel)) {
+        const c = clase(gr.id, f);
+        if (!c || c.inicio <= ahora || gr.alumnos.includes(alumnoId)) continue;
+        if (c.alumnos.some((a) => a.id === alumnoId) || c.pendientes.some((p) => p.alumnoId === alumnoId)) continue;
+        if (c.alumnos.length + c.pendientes.length >= max) continue;
+        out.push(c);
+      }
+    }
+    return out;
+  }
+
+  const recuperacionesAlumno = (alumnoId: string, desde: string) =>
+    db.recuperaciones.filter((r) => r.alumnoId === alumnoId && r.fecha >= desde && r.estado !== "rechazada");
+
+  function pendientesProfe(profeId: string): Recuperacion[] {
+    const mis = new Set(db.grupos.filter((x) => x.profeId === profeId).map((x) => x.id));
+    return db.recuperaciones.filter((r) => r.estado === "pendiente" && mis.has(r.grupoId));
+  }
+
+  return {
+    usuario, club, grupo, usuariosDeClub, clase, clasesSemana, limiteBaja,
+    creditosDisponibles, clasesParaRecuperar, recuperacionesAlumno, pendientesProfe,
+  };
+}
+
+// ---------- Datos de prueba en memoria (modo sin Supabase) ----------
 
 function semilla(): Db {
   const clubs: Club[] = [
@@ -55,132 +140,56 @@ function semilla(): Db {
   };
 }
 
-const g = globalThis as unknown as { __db?: Db };
-export const db: Db = (g.__db ??= semilla());
+const gl = globalThis as unknown as { __db?: Db };
+export const memoria: Db = (gl.__db ??= semilla());
 
 let n = 0;
 const nuevoId = (p: string) => `${p}${Date.now().toString(36)}${(n++).toString(36)}`;
 
-export const usuario = (id: string) => db.usuarios.find((u) => u.id === id);
-export const club = (id: string) => db.clubs.find((c) => c.id === id)!;  // puede ser undefined si el id no existe
-export const clubPorSlug = (slug: string) => db.clubs.find((c) => c.slug === slug);
-export const clubPorCodigo = (codigo: string) => db.clubs.find((c) => c.codigo.toUpperCase() === codigo.trim().toUpperCase());
-export const usuariosDeClub = (clubId: string) => db.usuarios.filter((u) => u.clubId === clubId);
-export const grupo = (id: string) => db.grupos.find((x) => x.id === id);
+export const demo = {
+  clubPorCodigo: (codigo: string) => memoria.clubs.find((c) => c.codigo.toUpperCase() === codigo.trim().toUpperCase()),
 
-/** Una clase concreta = grupo + fecha */
-export interface Clase {
-  grupo: Grupo; fecha: string; inicio: Date; contenido?: string;
-  alumnos: Usuario[];          // quién viene (fijos sin baja + recuperaciones aprobadas)
-  bajas: Usuario[];
-  pendientes: Recuperacion[];
-}
+  darBaja(alumnoId: string, grupoId: string, fecha: string, ahora = new Date()): string | null {
+    const q = consultas(memoria);
+    const c = q.clase(grupoId, fecha);
+    if (!c || !c.grupo.alumnos.includes(alumnoId)) return "No estás en esa clase.";
+    if (c.bajas.some((b) => b.id === alumnoId)) return "Ya te diste de baja.";
+    if (ahora > q.limiteBaja(c)) return "El plazo para darte de baja ya pasó.";
+    const baja: Baja = { id: nuevoId("b"), alumnoId, grupoId, fecha };
+    memoria.bajas.push(baja);
+    const dias = q.club(c.grupo.clubId).diasCaducidad;
+    memoria.creditos.push({ id: nuevoId("cr"), alumnoId, bajaId: baja.id, caduca: sumarDias(fecha, dias), usado: false });
+    return null;
+  },
 
-export function clase(grupoId: string, fecha: string): Clase | undefined {
-  const gr = grupo(grupoId);
-  if (!gr || diaSemana(fecha) !== gr.dia) return;
-  const bajasIds = db.bajas.filter((b) => b.grupoId === gr.id && b.fecha === fecha).map((b) => b.alumnoId);
-  const recs = db.recuperaciones.filter((r) => r.grupoId === gr.id && r.fecha === fecha);
-  const ids = [...gr.alumnos.filter((a) => !bajasIds.includes(a)), ...recs.filter((r) => r.estado === "aprobada").map((r) => r.alumnoId)];
-  return {
-    grupo: gr, fecha, inicio: inicioClase(fecha, gr.hora), contenido: db.sesiones[`${gr.id}|${fecha}`],
-    alumnos: ids.map((i) => usuario(i)!), bajas: bajasIds.map((i) => usuario(i)!),
-    pendientes: recs.filter((r) => r.estado === "pendiente"),
-  };
-}
+  pedirRecuperacion(alumnoId: string, grupoId: string, fecha: string): string | null {
+    const q = consultas(memoria);
+    const ok = q.clasesParaRecuperar(alumnoId).some((c) => c.grupo.id === grupoId && c.fecha === fecha);
+    if (!ok) return "Esa clase ya no está disponible.";
+    const cred = q.creditosDisponibles(alumnoId).filter((c) => c.caduca >= fecha).sort((a, b) => a.caduca.localeCompare(b.caduca))[0];
+    if (!cred) return "No tienes recuperaciones disponibles para esa fecha.";
+    memoria.recuperaciones.push({ id: nuevoId("r"), alumnoId, creditoId: cred.id, grupoId, fecha, estado: "pendiente" });
+    return null;
+  },
 
-export function clasesSemana(lunes: string, filtro: (gr: Grupo) => boolean): Clase[] {
-  const out: Clase[] = [];
-  for (let i = 0; i < 7; i++) {
-    const f = sumarDias(lunes, i);
-    for (const gr of db.grupos.filter(filtro)) {
-      const c = clase(gr.id, f);
-      if (c) out.push(c);
+  resolverRecuperacion(profeId: string, recId: string, aprobar: boolean): string | null {
+    const q = consultas(memoria);
+    const r = memoria.recuperaciones.find((x) => x.id === recId);
+    if (!r || r.estado !== "pendiente") return "La solicitud ya no está pendiente.";
+    const gr = q.grupo(r.grupoId)!;
+    if (gr.profeId !== profeId) return "Esa clase no es tuya.";
+    if (aprobar) {
+      if (q.clase(r.grupoId, r.fecha)!.alumnos.length >= q.club(gr.clubId).maxAlumnos) return "La clase ya está completa.";
+      memoria.creditos.find((c) => c.id === r.creditoId)!.usado = true;
     }
-  }
-  return out.sort((a, b) => +a.inicio - +b.inicio);
-}
+    r.estado = aprobar ? "aprobada" : "rechazada";
+    return null;
+  },
 
-export function limiteBaja(c: Clase): Date {
-  const h = club(c.grupo.clubId).horasBaja;
-  return new Date(+c.inicio - h * 3600_000);
-}
-
-export function creditosDisponibles(alumnoId: string, hoy = iso(new Date())): Credito[] {
-  const usados = new Set(db.recuperaciones.filter((r) => r.estado !== "rechazada").map((r) => r.creditoId));
-  return db.creditos.filter((c) => c.alumnoId === alumnoId && !c.usado && !usados.has(c.id) && c.caduca >= hoy);
-}
-
-/** Clases del mismo nivel, con plaza, antes de caducar el crédito y donde el alumno no está ya */
-export function clasesParaRecuperar(alumnoId: string, ahora = new Date()): Clase[] {
-  const al = usuario(alumnoId)!;
-  const creds = creditosDisponibles(alumnoId);
-  if (!creds.length) return [];
-  const hasta = creds.map((c) => c.caduca).sort().at(-1)!;
-  const max = club(al.clubId).maxAlumnos;
-  const out: Clase[] = [];
-  for (let f = iso(ahora); f <= hasta; f = sumarDias(f, 1)) {
-    for (const gr of db.grupos.filter((x) => x.clubId === al.clubId && x.nivel === al.nivel)) {
-      const c = clase(gr.id, f);
-      if (!c || c.inicio <= ahora) continue;
-      if (c.alumnos.some((a) => a.id === alumnoId) || c.pendientes.some((p) => p.alumnoId === alumnoId)) continue;
-      if (gr.alumnos.includes(alumnoId)) continue;
-      if (c.alumnos.length + c.pendientes.length >= max) continue;
-      out.push(c);
-    }
-  }
-  return out;
-}
-
-// ---------- Acciones ----------
-
-export function darBaja(alumnoId: string, grupoId: string, fecha: string, ahora = new Date()): string | null {
-  const c = clase(grupoId, fecha);
-  if (!c || !c.grupo.alumnos.includes(alumnoId)) return "No estás en esa clase.";
-  if (c.bajas.some((b) => b.id === alumnoId)) return "Ya te diste de baja.";
-  if (ahora > limiteBaja(c)) return "El plazo para darte de baja ya pasó.";
-  const baja: Baja = { id: nuevoId("b"), alumnoId, grupoId, fecha };
-  db.bajas.push(baja);
-  const dias = club(c.grupo.clubId).diasCaducidad;
-  db.creditos.push({ id: nuevoId("cr"), alumnoId, bajaId: baja.id, caduca: sumarDias(fecha, dias), usado: false });
-  return null;
-}
-
-export function pedirRecuperacion(alumnoId: string, grupoId: string, fecha: string): string | null {
-  const ok = clasesParaRecuperar(alumnoId).some((c) => c.grupo.id === grupoId && c.fecha === fecha);
-  if (!ok) return "Esa clase ya no está disponible.";
-  const cred = creditosDisponibles(alumnoId).filter((c) => c.caduca >= fecha).sort((a, b) => a.caduca.localeCompare(b.caduca))[0];
-  if (!cred) return "Tu recuperación caduca antes de esa fecha.";
-  db.recuperaciones.push({ id: nuevoId("r"), alumnoId, creditoId: cred.id, grupoId, fecha, estado: "pendiente" });
-  return null;
-}
-
-export function resolverRecuperacion(profeId: string, recId: string, aprobar: boolean): string | null {
-  const r = db.recuperaciones.find((x) => x.id === recId);
-  if (!r || r.estado !== "pendiente") return "La solicitud ya no está pendiente.";
-  const gr = grupo(r.grupoId)!;
-  if (gr.profeId !== profeId) return "Esa clase no es tuya.";
-  if (aprobar) {
-    const c = clase(r.grupoId, r.fecha)!;
-    if (c.alumnos.length >= club(gr.clubId).maxAlumnos) return "La clase ya está completa.";
-    db.creditos.find((c) => c.id === r.creditoId)!.usado = true;
-  }
-  r.estado = aprobar ? "aprobada" : "rechazada";
-  return null;
-}
-
-export function recuperacionesAlumno(alumnoId: string, desde: string): Recuperacion[] {
-  return db.recuperaciones.filter((r) => r.alumnoId === alumnoId && r.fecha >= desde && r.estado !== "rechazada");
-}
-
-export function pendientesProfe(profeId: string): Recuperacion[] {
-  const mis = new Set(db.grupos.filter((x) => x.profeId === profeId).map((x) => x.id));
-  return db.recuperaciones.filter((r) => r.estado === "pendiente" && mis.has(r.grupoId));
-}
-
-export function guardarSesion(profeId: string, grupoId: string, fecha: string, contenido: string): string | null {
-  const gr = grupo(grupoId);
-  if (!gr || gr.profeId !== profeId) return "Esa clase no es tuya.";
-  db.sesiones[`${grupoId}|${fecha}`] = contenido.trim();
-  return null;
-}
+  guardarSesion(profeId: string, grupoId: string, fecha: string, contenido: string): string | null {
+    const gr = consultas(memoria).grupo(grupoId);
+    if (!gr || gr.profeId !== profeId) return "Esa clase no es tuya.";
+    memoria.sesiones[`${grupoId}|${fecha}`] = contenido.trim();
+    return null;
+  },
+};

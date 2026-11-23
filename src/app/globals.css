@@ -71,6 +71,7 @@ ul.al { margin: 0; padding-left: 18px; font-size: .82rem; }
 .login h1 { font-size: 1.8rem; font-weight: 800; }
 .login form { display: grid; gap: 8px; }
 
+.campo.email { text-transform: none; letter-spacing: 0; }
 .campo { font: inherit; font-size: 1.1rem; letter-spacing: .08em; text-transform: uppercase; padding: 12px; border: 1px solid var(--linea); border-radius: 12px; background: var(--card); color: var(--fg); }
 .login h2 { font-size: 1.2rem; }
 .login .btn.p { padding: 12px; text-align: center; display: block; }

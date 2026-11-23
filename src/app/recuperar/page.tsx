@@ -2,13 +2,14 @@
 export const instant = false;
 
 import Link from "next/link";
-import * as d from "@/lib/datos";
+import { datos } from "@/lib/repo";
 import { fechaCorta, horaFin, nombreDia } from "@/lib/fechas";
 import { yo } from "@/lib/sesion";
 import { pedirRecuperacion } from "../acciones";
 import { Aviso, Cabecera, Nav } from "../marco";
 
 export default async function Recuperar({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const d = await datos();
   const u = await yo();
   const { error } = await searchParams;
   const clases = d.clasesParaRecuperar(u.id);

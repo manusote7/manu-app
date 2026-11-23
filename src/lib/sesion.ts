@@ -1,14 +1,35 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { club, usuario, type Usuario } from "./datos";
+import type { Usuario } from "./datos";
+import { datos } from "./repo";
+import { modoSupabase, sb } from "./supabase";
 
-// Dos pasos: primero el club (cookie "club"), luego la persona dentro de ese club (cookie "uid").
-// El login de persona será con email (Supabase Auth); de momento se elige usuario.
+export interface ClubElegido { id: string; slug: string; nombre: string }
+
+/** Paso 1 del acceso: el club guardado en este dispositivo. */
+export async function clubElegido(): Promise<ClubElegido | undefined> {
+  try {
+    const v = (await cookies()).get("club")?.value;
+    return v ? (JSON.parse(v) as ClubElegido) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Paso 2: la persona conectada, que tiene que ser de ese club. */
 export async function yo(): Promise<Usuario> {
-  const c = await cookies();
-  const clubId = c.get("club")?.value;
-  const u = c.get("uid") ? usuario(c.get("uid")!.value) : undefined;
-  if (!clubId) redirect("/");
-  if (!u || u.clubId !== clubId) redirect(`/c/${club(clubId)?.slug ?? ""}`);
+  const club = await clubElegido();
+  if (!club) redirect("/");
+  let id: string | undefined;
+  if (modoSupabase) {
+    id = (await (await sb()).auth.getUser()).data.user?.id;
+  } else {
+    id = (await cookies()).get("uid")?.value;
+  }
+  if (!id) redirect(`/c/${club.slug}`);
+  const u = (await datos()).usuario(id);
+  if (!u || u.clubId !== club.id) {
+    redirect(`/c/${club.slug}?error=${encodeURIComponent("Tu cuenta no pertenece a este club.")}`);
+  }
   return u;
 }
