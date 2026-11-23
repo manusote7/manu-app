@@ -11,13 +11,39 @@ const volver = (ruta: string, error: string | null, ok: string) => {
   redirect(`${ruta}${ruta.includes("?") ? "&" : "?"}${q}`);
 };
 
+const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 365 };
+
+export async function entrarClub(form: FormData) {
+  const c = d.clubPorCodigo(String(form.get("codigo") ?? ""));
+  if (!c) redirect("/?error=" + encodeURIComponent("Ese código no corresponde a ningún club."));
+  const jar = await cookies();
+  jar.set("club", c.id, opts);
+  jar.delete("uid");
+  redirect(`/c/${c.slug}`);
+}
+
 export async function entrar(form: FormData) {
-  (await cookies()).set("uid", String(form.get("uid")), { httpOnly: true, sameSite: "lax", path: "/" });
+  const u = d.usuario(String(form.get("uid")));
+  const clubId = String(form.get("club"));
+  // Nunca se entra en un club con un usuario de otro club
+  if (!u || u.clubId !== clubId) redirect("/");
+  const jar = await cookies();
+  jar.set("club", clubId, opts);
+  jar.set("uid", u.id, opts);
   redirect("/semana");
 }
 
 export async function salir() {
-  (await cookies()).delete("uid");
+  const jar = await cookies();
+  const slug = d.club(jar.get("club")?.value ?? "")?.slug;
+  jar.delete("uid");
+  redirect(slug ? `/c/${slug}` : "/");
+}
+
+export async function cambiarClub() {
+  const jar = await cookies();
+  jar.delete("club");
+  jar.delete("uid");
   redirect("/");
 }
 

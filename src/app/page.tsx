@@ -1,21 +1,22 @@
-import { db } from "@/lib/datos";
-import { entrar } from "./acciones";
+// Paso 1: entrar al club con su código.
+export const instant = false;
 
-export default function Entrar() {
-  const rol = { alumno: "Alumno", profe: "Profe", admin: "Admin" };
+import { entrarClub } from "./acciones";
+
+export default async function EntrarClub({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
   return (
     <main className="app">
       <div className="login">
-        <h1>Entrar</h1>
-        <p className="meta">Versión de prueba: elige con quién entrar. Más adelante será con tu email.</p>
-        <form action={entrar}>
-          {db.usuarios.map((u) => (
-            <button key={u.id} name="uid" value={u.id}>
-              <span>{u.nombre}</span>
-              <span className="meta">{rol[u.rol]}{u.nivel ? ` · ${u.nivel}` : ""}</span>
-            </button>
-          ))}
+        <h1>Entra en tu club</h1>
+        <p className="meta">Escribe el código que te ha dado tu club. Solo hace falta la primera vez.</p>
+        {error && <p className="msg err" role="alert">{error}</p>}
+        <form action={entrarClub}>
+          <label htmlFor="codigo" className="meta">Código del club</label>
+          <input id="codigo" name="codigo" className="campo" autoComplete="off" autoCapitalize="characters" required placeholder="Ej. NORTE24" />
+          <button className="btn p">Entrar</button>
         </form>
+        <p className="meta">Prueba: NORTE24 o SUR24.</p>
       </div>
     </main>
   );

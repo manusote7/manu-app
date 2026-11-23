@@ -2,6 +2,8 @@
 
 create table clubs (
   id uuid primary key default gen_random_uuid(),
+  slug text not null unique,          -- enlace de la app del club: /c/<slug>
+  codigo_acceso text not null unique, -- código que el club da a su gente
   nombre text not null,
   logo_url text,
   color text,
@@ -83,6 +85,7 @@ create table recuperaciones (
 );
 
 -- Seguridad por filas: cada usuario solo ve los datos de su club.
+-- Ningún club puede leer datos de otro, aunque conozca su enlace o código.
 alter table clubs enable row level security;
 alter table usuarios enable row level security;
 alter table grupos enable row level security;

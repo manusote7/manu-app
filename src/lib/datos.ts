@@ -3,7 +3,7 @@
 import { diaSemana, inicioClase, iso, sumarDias, lunesDe } from "./fechas";
 
 export type Rol = "alumno" | "profe" | "admin";
-export interface Club { id: string; nombre: string; horasBaja: number; diasCaducidad: number; maxAlumnos: number }
+export interface Club { id: string; slug: string; codigo: string; nombre: string; horasBaja: number; diasCaducidad: number; maxAlumnos: number }
 export interface Usuario { id: string; clubId: string; nombre: string; rol: Rol; nivel?: string }
 export interface Grupo {
   id: string; clubId: string; nombre: string; nivel: string; profeId: string;
@@ -21,8 +21,11 @@ interface Db {
 }
 
 function semilla(): Db {
-  const club: Club = { id: "c1", nombre: "Club Pádel Norte", horasBaja: 6, diasCaducidad: 21, maxAlumnos: 4 };
-  const u = (id: string, nombre: string, rol: Rol, nivel?: string): Usuario => ({ id, clubId: "c1", nombre, rol, nivel });
+  const clubs: Club[] = [
+    { id: "c1", slug: "norte", codigo: "NORTE24", nombre: "Club Pádel Norte", horasBaja: 6, diasCaducidad: 21, maxAlumnos: 4 },
+    { id: "c2", slug: "sur", codigo: "SUR24", nombre: "Pádel Sur Academia", horasBaja: 24, diasCaducidad: 14, maxAlumnos: 4 },
+  ];
+  const u = (id: string, nombre: string, rol: Rol, nivel?: string, clubId = "c1"): Usuario => ({ id, clubId, nombre, rol, nivel });
   const usuarios = [
     u("p1", "Manu", "profe"), u("p2", "Sara", "profe"),
     u("a1", "Lucía Martín", "alumno", "Intermedio"), u("a2", "Pablo Ruiz", "alumno", "Intermedio"),
@@ -30,9 +33,11 @@ function semilla(): Db {
     u("a5", "Ana Sosa", "alumno", "Intermedio"), u("a6", "Diego Pérez", "alumno", "Intermedio"),
     u("a7", "Carla Díaz", "alumno", "Iniciación"), u("a8", "Hugo Vera", "alumno", "Iniciación"),
     u("a9", "Irene Ortiz", "alumno", "Avanzado"),
+    u("s1", "Rocío", "profe", undefined, "c2"), u("s2", "Tomás Vega", "alumno", "Intermedio", "c2"),
+    u("s3", "Nuria Cano", "alumno", "Intermedio", "c2"),
   ];
-  const g = (id: string, nombre: string, nivel: string, profeId: string, dia: number, hora: string, pista: string, alumnos: string[]): Grupo =>
-    ({ id, clubId: "c1", nombre, nivel, profeId, dia, hora, duracion: 60, pista, alumnos });
+  const g = (id: string, nombre: string, nivel: string, profeId: string, dia: number, hora: string, pista: string, alumnos: string[], clubId = "c1"): Grupo =>
+    ({ id, clubId, nombre, nivel, profeId, dia, hora, duracion: 60, pista, alumnos });
   const grupos = [
     g("g1", "Intermedio B", "Intermedio", "p1", 2, "18:00", "Pista 3", ["a1", "a2", "a3", "a4"]),
     g("g2", "Intermedio B", "Intermedio", "p1", 6, "10:00", "Pista 1", ["a1", "a2", "a3", "a4"]),
@@ -40,10 +45,11 @@ function semilla(): Db {
     g("g4", "Iniciación", "Iniciación", "p1", 2, "17:00", "Pista 3", ["a7", "a8"]),
     g("g5", "Avanzado", "Avanzado", "p1", 3, "20:00", "Pista 4", ["a9"]),
     g("g6", "Intermedio C", "Intermedio", "p2", 1, "19:00", "Pista 2", ["a5", "a6", "a3"]),
+    g("h1", "Intermedio", "Intermedio", "s1", 2, "19:00", "Pista Central", ["s2", "s3"], "c2"),
   ];
   const lunes = lunesDe(iso(new Date()));
   return {
-    clubs: [club], usuarios, grupos,
+    clubs, usuarios, grupos,
     sesiones: { [`g1|${sumarDias(lunes, 1)}`]: "Bandeja cruzada y salida de pared" },
     bajas: [], creditos: [], recuperaciones: [],
   };
@@ -56,7 +62,10 @@ let n = 0;
 const nuevoId = (p: string) => `${p}${Date.now().toString(36)}${(n++).toString(36)}`;
 
 export const usuario = (id: string) => db.usuarios.find((u) => u.id === id);
-export const club = (id: string) => db.clubs.find((c) => c.id === id)!;
+export const club = (id: string) => db.clubs.find((c) => c.id === id)!;  // puede ser undefined si el id no existe
+export const clubPorSlug = (slug: string) => db.clubs.find((c) => c.slug === slug);
+export const clubPorCodigo = (codigo: string) => db.clubs.find((c) => c.codigo.toUpperCase() === codigo.trim().toUpperCase());
+export const usuariosDeClub = (clubId: string) => db.usuarios.filter((u) => u.clubId === clubId);
 export const grupo = (id: string) => db.grupos.find((x) => x.id === id);
 
 /** Una clase concreta = grupo + fecha */
