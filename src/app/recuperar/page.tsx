@@ -25,7 +25,7 @@ export default async function Recuperar({ searchParams }: { searchParams: Promis
           <>
             <p className="meta">
               Clases de nivel {u.nivel} con plaza libre. Tienes {creditos.length === 1 ? "1 recuperación" : `${creditos.length} recuperaciones`};
-              el profe confirma tu plaza.
+              el profesor confirma tu plaza.
             </p>
             {clases.length === 0 && <Vacio titulo="Ahora no hay plazas libres" texto="Vuelve a mirar en unos días." />}
             {clases.map((c) => {
@@ -43,7 +43,7 @@ export default async function Recuperar({ searchParams }: { searchParams: Promis
                     <div className="datos">
                       <span>{c.grupo.nombre}</span>
                       {c.grupo.pista && <span><Icono.pista />{c.grupo.pista}</span>}
-                      <span><Icono.profe />{d.usuario(c.grupo.profeId)?.nombre ?? "Profe"}</span>
+                      <span><Icono.profe />{d.usuario(c.grupo.profeId)?.nombre ?? "Profesor"}</span>
                     </div>
                     <div className="acciones"><Boton className="btn prim">Pedir esta clase</Boton></div>
                   </div>

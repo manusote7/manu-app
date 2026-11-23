@@ -108,7 +108,7 @@ function ClaseAlumno({ c, u, d, recs, hoy }: { c: Clase; u: Usuario; d: Consulta
               : <span className="pill ok">Recuperación</span>}
           </div>
           <Datos c={c} profe={profe} />
-          {rec.estado === "pendiente" && <p className="meta">Esperando a que {profe ?? "el profe"} la apruebe.</p>}
+          {rec.estado === "pendiente" && <p className="meta">Esperando a que {profe ?? "el profesor"} la apruebe.</p>}
         </div>
       </div>
     );

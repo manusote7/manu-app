@@ -35,7 +35,7 @@ export default async function EntrarPersona({ params, searchParams }: { params: 
   }
 
   if (!error && !enviado && (await conectado())) redirect("/semana");
-  const rol = { alumno: "Alumno", profe: "Profe", admin: "Admin" };
+  const rol = { alumno: "Alumno", profe: "Profesor", admin: "Admin" };
   return (
     <main className="app acceso">
       <div className="acceso-hero">

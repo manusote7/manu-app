@@ -13,7 +13,7 @@ export default async function Perfil() {
   const d = await datos();
   const ficha = u.rol === "alumno" ? d.ficha(u.id) : undefined;
   const grupos = u.rol === "alumno" ? d.gruposDeAlumno(u.id) : d.gruposDeClub(u.clubId).filter((g) => g.profeId === u.id);
-  const rol = { alumno: "Alumno", profe: "Profe", admin: "Administración" }[u.rol];
+  const rol = { alumno: "Alumno", profe: "Profesor", admin: "Administración" }[u.rol];
   return (
     <main className="app">
       <Cabecera u={u} titulo="Perfil" />

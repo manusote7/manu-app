@@ -13,7 +13,7 @@ export function PersonaGestion({ p, club, grupos, ruta, conFicha, niveles = [] }
   const resto = grupos.filter((g) => !deSuNivel.includes(g));
   const estado = !p.activo ? <span className="pill gris">Inactivo</span>
     : !p.usuario ? <span className="pill warn">Aún no ha entrado</span>
-    : p.rol === "profe" ? <span className="pill nivel">Profe</span>
+    : p.rol === "profe" ? <span className="pill nivel">Profesor</span>
     : null;
   return (
     <details className="bloque">
@@ -91,7 +91,7 @@ export function FormAlta({ club, grupos, niveles, ruta, puedeProfe }: { club: st
         <div className="fila">
           {puedeProfe && (
             <label>Rol
-              <select name="rol" className="campo" defaultValue="alumno"><option value="alumno">Alumno</option><option value="profe">Profe</option></select>
+              <select name="rol" className="campo" defaultValue="alumno"><option value="alumno">Alumno</option><option value="profe">Profesor</option></select>
             </label>
           )}
           <label>Nivel (alumnos)

@@ -61,7 +61,7 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
             </div>
             <label style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--fg)", fontWeight: 500 }}>
               <input type="checkbox" name="recupera" defaultChecked={club.cancelarRecupera !== false} />
-              Si un profe cancela una clase, cada alumno recibe una recuperación
+              Si un profesor cancela una clase, cada alumno recibe una recuperación
             </label>
             <div><Boton className="btn prim">Guardar</Boton></div>
           </form>
@@ -77,7 +77,7 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
           </form>
         </details>
 
-        <div className="tit-seccion" id="niveles"><h2>Niveles</h2><span className="meta">Los profes eligen de esta lista</span></div>
+        <div className="tit-seccion" id="niveles"><h2>Niveles</h2><span className="meta">Los profesores eligen de esta lista</span></div>
         <div className="lista">
           {listaNiveles.map((n, i) => {
             const usos = grupos.filter((g) => g.nivel === n.nombre).length + alumnos.filter((a) => a.nivel === n.nombre).length;
@@ -124,7 +124,7 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
             <summary>
               <span style={{ display: "grid" }}>
                 <b style={{ fontWeight: 600 }}>{g.nombre}</b>
-                <span className="meta">{DIAS[g.dia - 1]} {g.hora} · {g.pista || "Sin pista"} · {profes.find((p) => p.email === emailProfe(g))?.nombre ?? "Sin profe"}</span>
+                <span className="meta">{DIAS[g.dia - 1]} {g.hora} · {g.pista || "Sin pista"} · {profes.find((p) => p.email === emailProfe(g))?.nombre ?? "Sin profesor"}</span>
               </span>
               <span className="pill nivel">{g.alumnos.length}/{d.maxDe(g)}</span>
             </summary>
@@ -152,7 +152,7 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
           </form>
         </details>
 
-        <div className="tit-seccion" id="personas"><h2>Personas</h2><span className="meta">{profes.length} profes · {alumnos.length} alumnos</span></div>
+        <div className="tit-seccion" id="personas"><h2>Personas</h2><span className="meta">{profes.length} profesores · {alumnos.length} alumnos</span></div>
         <FormAlta club={id} grupos={grupos} niveles={niveles} ruta={ruta} puedeProfe />
         {personas.map((p) => <PersonaGestion key={p.email} p={p} club={id} grupos={grupos} ruta={ruta} niveles={niveles} />)}
       </div>

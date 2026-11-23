@@ -45,8 +45,8 @@ export default async function FichaAlumno({ params, searchParams }: { params: Pr
           <label>Lesiones y molestias<textarea name="lesiones" rows={2} defaultValue={f?.lesiones} placeholder="Ej. molestias en el codo derecho" /></label>
           <label>Lo que ha trabajado<textarea name="trabajado" rows={3} defaultValue={f?.trabajado} placeholder="Ej. volea de derecha, globo" /></label>
           <label>Lo que tiene que trabajar<textarea name="aTrabajar" rows={3} defaultValue={f?.aTrabajar} placeholder="Ej. bandeja y salida de pared" /></label>
-          <p className="meta">El alumno ve lo de arriba en su perfil. Lo de abajo solo lo ven los profes.</p>
-          <label>Notas privadas (solo profes)<textarea name="privadas" rows={3} defaultValue={d.notasPrivadas(id)} placeholder="Ej. le cuesta la constancia; mejor emparejarlo con alguien de su nivel" /></label>
+          <p className="meta">El alumno ve lo de arriba en su perfil. Lo de abajo solo lo ven los profesores.</p>
+          <label>Notas privadas (solo profesores)<textarea name="privadas" rows={3} defaultValue={d.notasPrivadas(id)} placeholder="Ej. le cuesta la constancia; mejor emparejarlo con alguien de su nivel" /></label>
           {f?.actualizado && <p className="meta">Actualizada el {new Date(f.actualizado).toLocaleDateString("es-ES")}</p>}
           <div><Boton className="btn prim">Guardar ficha</Boton></div>
         </form>

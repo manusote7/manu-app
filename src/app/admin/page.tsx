@@ -40,7 +40,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
               </div>
               <div className="cifras">
                 <span><b>{d.gruposDeClub(c.id).length}</b> grupos</span>
-                <span><b>{personas.filter((p) => p.rol === "profe").length}</b> profes</span>
+                <span><b>{personas.filter((p) => p.rol === "profe").length}</b> profesores</span>
                 <span><b>{personas.filter((p) => p.rol === "alumno").length}</b> alumnos</span>
               </div>
             </Link>

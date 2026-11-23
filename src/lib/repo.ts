@@ -70,7 +70,7 @@ export const datos = cache(async () => {
 
 async function rpc(nombre: string, args: Record<string, unknown>): Promise<string | null> {
   const { error } = await (await sb()).rpc(nombre, args);
-  return error ? error.message : null;
+  return error ? error.message.replace(/\bprofes\b/g, "profesores").replace(/\bprofe\b/g, "profesor") : null;
 }
 
 export const acciones = {

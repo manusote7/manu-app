@@ -87,7 +87,7 @@ export async function darBaja(form: FormData) {
 export async function pedirRecuperacion(form: FormData) {
   const u = await yo();
   const err = await a.pedirRecuperacion(u.id, String(form.get("grupo")), String(form.get("fecha")));
-  volver(err ? "/recuperar" : "/semana", err, "Solicitud enviada al profe.");
+  volver(err ? "/recuperar" : "/semana", err, "Solicitud enviada al profesor.");
 }
 
 export async function resolver(form: FormData) {
@@ -192,7 +192,7 @@ export async function altaPersona(form: FormData) {
   if (!err && rol === "alumno") {
     for (const g of form.getAll("grupos")) err ??= await a.grupoAlumno(String(g), email, true);
   }
-  volver(rutaGestion(form, club), err, rol === "profe" ? "Profe dado de alta." : "Alumno dado de alta. Ya puede entrar con su email.");
+  volver(rutaGestion(form, club), err, rol === "profe" ? "Profesor dado de alta." : "Alumno dado de alta. Ya puede entrar con su email.");
 }
 
 export async function gruposPersona(form: FormData) {

@@ -303,7 +303,7 @@ export const demo = {
   guardarFicha(profeId: string, alumnoId: string, f: Ficha): string | null {
     const p = memoria.usuarios.find((x) => x.id === profeId);
     const a = memoria.usuarios.find((x) => x.id === alumnoId);
-    if (!p || !a || p.rol !== "profe" || p.clubId !== a.clubId) return "Solo los profes del club pueden editar la ficha.";
+    if (!p || !a || p.rol !== "profe" || p.clubId !== a.clubId) return "Solo los profesores del club pueden editar la ficha.";
     memoria.fichas[alumnoId] = { ...f, actualizado: new Date().toISOString() };
     return null;
   },
@@ -356,13 +356,13 @@ export const demo = {
   notasPrivadas(profeId: string, alumnoId: string, texto: string): string | null {
     const p = memoria.usuarios.find((x) => x.id === profeId);
     const a = memoria.usuarios.find((x) => x.id === alumnoId);
-    if (!p || !a || p.rol !== "profe" || p.clubId !== a.clubId) return "Solo los profes del club pueden editar la ficha.";
+    if (!p || !a || p.rol !== "profe" || p.clubId !== a.clubId) return "Solo los profesores del club pueden editar la ficha.";
     memoria.notasPrivadas[alumnoId] = texto.trim();
     return null;
   },
   publicarAnuncio(uid: string, clubId: string, texto: string): string | null {
     const u = memoria.usuarios.find((x) => x.id === uid);
-    if (!u || !(u.rol === "admin" || (u.rol === "profe" && u.clubId === clubId))) return "Solo profes y administración pueden publicar.";
+    if (!u || !(u.rol === "admin" || (u.rol === "profe" && u.clubId === clubId))) return "Solo profesores y administración pueden publicar.";
     if (!texto.trim()) return "Escribe el anuncio.";
     memoria.anuncios.push({ id: nuevoId("an"), clubId, autorId: uid, texto: texto.trim(), creado: new Date().toISOString() });
     memoria.usuarios.filter((x) => x.clubId === clubId && x.id !== uid && x.activo !== false)

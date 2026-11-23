@@ -45,7 +45,7 @@ export function CamposGrupo({ g, profes, niveles, profeEmail }: { g?: Grupo; pro
       </div>
       <div className="fila">
         <label>Pista<input name="pista" className="campo" defaultValue={g?.pista} placeholder="Pista 3" /></label>
-        <label>Profe
+        <label>Profesor
           <select name="profe" className="campo" defaultValue={profeEmail ?? ""}>
             <option value="">Sin asignar</option>
             {profes.map((p) => <option key={p.email} value={p.email}>{p.nombre}</option>)}
