@@ -232,8 +232,39 @@ export function consultas(db: Db) {
     };
   }
 
+  /** Siguiente clase de alguien (que da o a la que va) desde ahora, mirando 3 semanas */
+  function proximaClase(u: Usuario, ahora = new Date()): Clase | undefined {
+    const hoy = iso(ahora);
+    for (let i = 0; i < 21; i++) {
+      const f = sumarDias(hoy, i);
+      const cs = db.grupos
+        .map((g) => clase(g.id, f))
+        .filter((c): c is Clase => !!c && c.cancelada === undefined && +c.inicio + c.grupo.duracion * 60_000 > +ahora
+          && (u.rol === "profe" ? c.grupo.profeId === u.id : c.alumnos.some((a) => a.id === u.id)))
+        .sort((a, b) => +a.inicio - +b.inicio);
+      if (cs.length) return cs[0];
+    }
+  }
+
+  /** Asistencia de un alumno en sus grupos fijos entre dos fechas (solo clases ya empezadas) */
+  function resumenAlumno(alumnoId: string, desde: string, hasta: string, ahora = new Date()) {
+    let previstas = 0, bajas = 0, faltas = 0, vino = 0;
+    for (let f = desde; f <= hasta; f = sumarDias(f, 1)) {
+      for (const g of db.grupos.filter((x) => x.alumnos.includes(alumnoId))) {
+        const c = clase(g.id, f);
+        if (!c || c.cancelada !== undefined || c.inicio > ahora) continue;
+        previstas++;
+        if (c.bajas.some((b) => b.id === alumnoId)) bajas++;
+        else if (c.asistencia[alumnoId] === false) faltas++;
+        else if (c.asistencia[alumnoId]) vino++;
+      }
+    }
+    const recuperadas = db.recuperaciones.filter((r) => r.alumnoId === alumnoId && r.estado === "aprobada" && r.fecha >= desde && r.fecha <= hasta).length;
+    return { previstas, bajas, faltas, vino, recuperadas };
+  }
+
   return {
-    usoClub,
+    usoClub, proximaClase, resumenAlumno,
     planDe, clasesManana, candidatosColocar, estadisticas,
     /** Niveles del club en orden. Si el club aún no tiene lista, los que ya se usan. */
     nivelesDeClub(clubId: string): Nivel[] {

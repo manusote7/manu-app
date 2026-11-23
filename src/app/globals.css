@@ -258,7 +258,7 @@ details.bloque > .form, details.bloque > .contenido { padding: 0 14px 14px; }
 .burbuja .meta { font-size: .68rem; }
 .msj.mio .burbuja { background: var(--pista); color: #fff; border-color: var(--pista); border-radius: 16px 16px 4px 16px; }
 .msj.mio .burbuja .meta { color: rgba(255,255,255,.75); }
-.borrar-msj { opacity: .35; width: 28px; height: 28px; font-size: 1rem; }
+.borrar-msj { opacity: .3; width: 22px; height: 22px; min-width: 22px; font-size: .8rem; border: 0; background: none; padding: 0; }
 .borrar-msj:hover, .borrar-msj:focus-visible { opacity: 1; }
 .chat-envio { position: fixed; left: 0; right: 0; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 5; max-width: 520px; margin: 0 auto;
   display: flex; gap: 8px; padding: 8px 12px; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
@@ -289,3 +289,24 @@ details.bloque > .form, details.bloque > .contenido { padding: 0 14px 14px; }
 .instalar img { border-radius: 9px; }
 .enlace-chat { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--pista-2); justify-self: start; }
 .enlace-chat svg { width: 18px; height: 18px; }
+
+/* Cabecera de la semana: próxima clase */
+.hero { border-radius: var(--r); background: linear-gradient(135deg, var(--pista), color-mix(in srgb, var(--pista) 70%, #000)); color: #fff;
+  padding: 16px; display: grid; gap: 14px; box-shadow: var(--sombra); position: relative; overflow: hidden; }
+.hero::after { content: ""; position: absolute; right: -28px; top: -28px; width: 110px; height: 110px; border-radius: 50%; background: var(--pelota); opacity: .9; }
+.hero > * { position: relative; z-index: 1; }
+.hero-clase { display: grid; gap: 2px; padding-right: 70px; }
+.hero-clase small { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
+.hero-clase b { font-family: var(--display); font-size: 1.45rem; font-weight: 800; letter-spacing: -.01em; }
+.hero-clase span { font-size: .9rem; opacity: .9; }
+.hero-hoy { display: flex; gap: 18px; padding-right: 70px; }
+.hero-hoy span { display: grid; font-size: .72rem; opacity: .85; }
+.hero-hoy b { font-family: var(--display); font-size: 1.4rem; font-weight: 800; opacity: 1; }
+.chat-dia { text-align: center; margin: 10px 0 2px; }
+.chat-dia span { font-size: .72rem; font-weight: 600; color: var(--muted); background: var(--card); border: 1px solid var(--linea); border-radius: 999px; padding: 3px 10px; }
+.msj.seguido { margin-top: -4px; }
+.ini.hueco { visibility: hidden; }
+.burbuja.de-profe { border-color: color-mix(in srgb, var(--pista-2) 40%, var(--linea)); background: color-mix(in srgb, var(--pista-suave) 60%, var(--card)); }
+.grupo-sec { display: grid; gap: 8px; }
+.grupo-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 2px; }
+.grupo-cab b { font-family: var(--display); font-weight: 700; font-size: 1.02rem; }

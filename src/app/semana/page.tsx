@@ -59,7 +59,7 @@ export default async function MiSemana({ searchParams }: { searchParams: SP }) {
 
       <div className="body">
         {esProfe ? <Solicitudes profeId={u.id} d={d} ruta={`/semana?d=${dia}`} /> : <Creditos alumnoId={u.id} d={d} />}
-        <Manana u={u} d={d} hoy={hoy} />
+        <Proxima u={u} d={d} hoy={hoy} />
         <TablonResumen u={u} d={d} />
         <Dias
           inicial={dia}
@@ -344,17 +344,38 @@ function Colocar({ c, d, ruta }: { c: Clase; d: Consultas; ruta: string }) {
   );
 }
 
-/** Recordatorio de las clases de mañana */
-function Manana({ u, d, hoy }: { u: Usuario; d: Consultas; hoy: string }) {
-  const cs = d.clasesManana(u, hoy);
-  if (!cs.length) return null;
+/** Solo para clases de hoy: cuánto falta */
+const falta = (ms: number) => {
+  const min = Math.round(ms / 60000);
+  if (min <= 0) return " · En curso";
+  if (min < 60) return ` · Empieza en ${min} min`;
+  return ` · Empieza en ${Math.round(min / 60)} h`;
+};
+
+/** Cabecera de la semana: la próxima clase (alumno) o el resumen de hoy (profesor) */
+function Proxima({ u, d, hoy }: { u: Usuario; d: Consultas; hoy: string }) {
+  const c = d.proximaClase(u);
+  const esProfe = u.rol === "profe";
+  const deHoy = esProfe ? d.clasesSemana(lunesDe(hoy), (g) => g.profeId === u.id).filter((x) => x.fecha === hoy && x.cancelada === undefined) : [];
+  if (!c && !deHoy.length) return null;
+  const cuando = (f: string) => (f === hoy ? "Hoy" : f === sumarDias(hoy, 1) ? "Mañana" : `${nombreDia(f).replace(/^./, (x) => x.toUpperCase())} ${fechaCorta(f)}`);
+  const profe = c && d.usuario(c.grupo.profeId)?.nombre;
   return (
-    <Link href={`/semana?d=${sumarDias(hoy, 1)}`} className="banner recordatorio">
-      <Icono.reloj />
-      <div>
-        <b>Mañana {u.rol === "profe" ? "das" : "tienes"} {cs.length === 1 ? "clase" : `${cs.length} clases`}</b>
-        <p className="meta" style={{ color: "inherit" }}>{cs.map((c) => `${c.grupo.nombre} a las ${c.grupo.hora}`).join(" · ")}</p>
-      </div>
-    </Link>
+    <div className="hero">
+      {esProfe && deHoy.length > 0 && (
+        <div className="hero-hoy">
+          <span><b>{deHoy.length}</b>{deHoy.length === 1 ? "clase hoy" : "clases hoy"}</span>
+          <span><b>{deHoy.reduce((t, x) => t + x.alumnos.length, 0)}</b>alumnos hoy</span>
+          <span><b>{d.pendientesProfe(u.id).length}</b>solicitudes</span>
+        </div>
+      )}
+      {c && (
+        <Link href={`/semana?d=${c.fecha}`} className="hero-clase">
+          <small>{esProfe ? "Tu siguiente clase" : "Tu próxima clase"}{c.fecha === hoy ? falta(+c.inicio - Date.now()) : ""}</small>
+          <b>{cuando(c.fecha)}, {c.grupo.hora}</b>
+          <span>{c.grupo.nombre}{c.grupo.pista ? ` · ${c.grupo.pista}` : ""}{!esProfe && profe ? ` · con ${profe}` : ""}{esProfe ? ` · ${c.alumnos.length}/${d.maxDe(c.grupo)} alumnos` : ""}</span>
+        </Link>
+      )}
+    </div>
   );
 }
