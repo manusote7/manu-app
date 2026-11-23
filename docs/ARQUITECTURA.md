@@ -95,6 +95,13 @@ Para cambiar el esquema: crea `supabase/NN_algo.sql` (idempotente, con `if not e
 
 ## 6. Despliegue
 
+### Dos apps, un mismo código y una misma base de datos
+
+- **App de alumnos y profesores**: Worker `manu-app` (`wrangler.jsonc`). Las rutas `/admin…` devuelven 404.
+- **App de administración**: Worker `manu-admin` (`wrangler.admin.jsonc`, `NEXT_PUBLIC_APP=admin`). Solo sirve `/admin…` y `/auth/…`; el resto redirige a `/admin`.
+- Lo decide `src/middleware.ts` según `NEXT_PUBLIC_APP` (se fija al compilar). Las dos usan la misma Supabase.
+- Build admin: `NEXT_PUBLIC_APP=admin npx opennextjs-cloudflare build -c wrangler.admin.jsonc`; deploy: `npx opennextjs-cloudflare deploy -c wrangler.admin.jsonc`.
+
 ### Cloudflare (principal)
 
 - Workers & Pages → `manu-app` → conectado a GitHub. Build: `npx opennextjs-cloudflare build`; deploy: `npx opennextjs-cloudflare deploy`.

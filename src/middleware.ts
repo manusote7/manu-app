@@ -4,6 +4,15 @@ import { NextResponse, type NextRequest } from "next/server";
 // middleware.ts (y no proxy.ts) porque Cloudflare/OpenNext solo soporta bien el middleware de tipo edge.
 // Renueva la sesión de Supabase en cada petición para que no caduque.
 export async function middleware(request: NextRequest) {
+  // Dos apps con el mismo código: la de alumnos y profesores, y la de administración (NEXT_PUBLIC_APP=admin).
+  // Cada una solo deja ver sus pantallas. La seguridad de verdad está en Supabase (RLS y funciones).
+  const ruta = request.nextUrl.pathname;
+  const esAdmin = ruta === "/admin" || ruta.startsWith("/admin/");
+  if (process.env.NEXT_PUBLIC_APP === "admin") {
+    if (!esAdmin && !ruta.startsWith("/auth/")) return NextResponse.redirect(new URL("/admin", request.url));
+  } else if (esAdmin) {
+    return new NextResponse("No encontrado", { status: 404 });
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   let res = NextResponse.next({ request });

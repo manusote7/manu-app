@@ -2,11 +2,12 @@ import type { MetadataRoute } from "next";
 
 // Hace la web instalable: icono en la pantalla de inicio y se abre a pantalla completa.
 export default function manifest(): MetadataRoute.Manifest {
+  const admin = process.env.NEXT_PUBLIC_APP === "admin";
   return {
-    name: "Escuela de pádel",
-    short_name: "Pádel",
+    name: admin ? "Pádel · Administración" : "Escuela de pádel",
+    short_name: admin ? "Admin pádel" : "Pádel",
     description: "Tus clases de pádel: semana, bajas, recuperaciones y chat del grupo.",
-    start_url: "/semana",
+    start_url: admin ? "/admin" : "/semana",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
