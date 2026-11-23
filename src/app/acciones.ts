@@ -362,3 +362,41 @@ export async function cuotaClub(form: FormData) {
   const err = await a.cuotaClub(club, dinero("mensual"), dinero("alta"), txt(form, "desde") || undefined);
   volver(`/admin/club/${club}`, err, "Cuota guardada.");
 }
+
+/** Entrar con el código de 6 cifras del email (sirve dentro de la app instalada, sin abrir el navegador) */
+export async function entrarCodigo(form: FormData) {
+  const admin = form.get("admin") === "1";
+  const club = admin ? undefined : await clubElegido();
+  const email = txt(form, "email").toLowerCase();
+  const codigo = txt(form, "codigo").replace(/\D/g, "");
+  const base = admin ? "/admin" : club ? `/c/${club.slug}` : "/";
+  if (codigo.length < 6) redirect(`${base}?enviado=${encodeURIComponent(email)}&error=${encodeURIComponent("Escribe el código que te ha llegado por email.")}`);
+  const { error } = await (await sb()).auth.verifyOtp({ email, token: codigo, type: "email" });
+  if (error) {
+    const msg = /expired|invalid/i.test(error.message) ? "Código incorrecto o caducado. Revisa el último email o pide otro." : "No se pudo entrar. Prueba otra vez.";
+    redirect(`${base}?enviado=${encodeURIComponent(email)}&error=${encodeURIComponent(msg)}`);
+  }
+  revalidatePath("/", "layout");
+  redirect(admin ? "/admin" : "/semana");
+}
+
+/** Alta de varios alumnos a la vez: una línea por persona, "Nombre, email" (también vale copiado de Excel) */
+export async function altaVarios(form: FormData) {
+  const club = txt(form, "club");
+  await gestor(club);
+  const nivel = txt(form, "nivel") || undefined;
+  const grupos = form.getAll("grupos").map(String);
+  const lineas = txt(form, "lista").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const malas: string[] = [];
+  let hechas = 0;
+  for (const l of lineas) {
+    const email = l.match(/[^\s,;<>\t]+@[^\s,;<>\t]+\.[^\s,;<>\t]+/)?.[0]?.toLowerCase();
+    const nombre = l.replace(email ?? "", "").replace(/[<>,;\t]+/g, " ").replace(/\s+/g, " ").trim() || email?.split("@")[0] || "";
+    if (!email) { malas.push(l); continue; }
+    let err = await a.alta(club, email, nombre, "alumno", nivel);
+    for (const g of grupos) err ??= await a.grupoAlumno(g, email, true);
+    if (err) malas.push(`${l} (${err})`); else hechas++;
+  }
+  const ok = `${hechas} ${hechas === 1 ? "alumno dado" : "alumnos dados"} de alta.`;
+  volver(rutaGestion(form, club), malas.length ? `${ok} No se pudo con: ${malas.slice(0, 5).join(" · ")}${malas.length > 5 ? "…" : ""}` : null, ok);
+}

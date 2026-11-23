@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Grupo, Persona } from "@/lib/datos";
-import { altaPersona, cambiarActivo, cambiarNivel, gruposPersona } from "./acciones";
+import { altaPersona, altaVarios, cambiarActivo, cambiarNivel, gruposPersona } from "./acciones";
 import { Boton } from "./cliente";
 import { DIAS } from "./admin/campos";
 import { iniciales } from "./marco";
@@ -109,8 +109,40 @@ export function FormAlta({ club, grupos, niveles, ruta, puedeProfe }: { club: st
             </div>
           </>
         )}
-        <p className="meta">Entrará con este email: le llegará un enlace cuando lo escriba en la app.</p>
+        <p className="meta">Entrará con este email: le llegará un código cuando lo escriba en la app.</p>
         <div><Boton className="btn prim">Dar de alta</Boton></div>
+      </form>
+    </details>
+  );
+}
+
+/** Pegar una lista de alumnos (uno por línea) y darlos de alta de una vez */
+export function FormAltaVarios({ club, grupos, niveles, ruta }: { club: string; grupos: Grupo[]; niveles: string[]; ruta: string }) {
+  return (
+    <details className="bloque">
+      <summary><b>+ Dar de alta a varios alumnos</b><span className="meta">Pega una lista</span></summary>
+      <form action={altaVarios} className="form">
+        <input type="hidden" name="club" value={club} />
+        <input type="hidden" name="ruta" value={ruta} />
+        <label>Un alumno por línea: nombre y email
+          <textarea name="lista" rows={6} required placeholder={"Lucía Martín, lucia@email.com\nPablo Ruiz, pablo@email.com"} />
+        </label>
+        <label>Nivel de todos
+          <select name="nivel" className="campo" defaultValue="">
+            <option value="">Sin nivel</option>
+            {niveles.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+        {grupos.length > 0 && (
+          <>
+            <span className="meta">Ponerlos en estos grupos (opcional)</span>
+            <div className="checks">
+              {grupos.map((g) => <label key={g.id}><input type="checkbox" name="grupos" value={g.id} />{etiquetaGrupo(g)}</label>)}
+            </div>
+          </>
+        )}
+        <p className="meta">Puedes copiar las columnas de nombre y email de un Excel. Cada uno entrará con su email.</p>
+        <div><Boton className="btn prim">Dar de alta a todos</Boton></div>
       </form>
     </details>
   );

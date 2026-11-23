@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { datos } from "@/lib/repo";
 import { yo } from "@/lib/sesion";
 import { Aviso, Cabecera, Nav, Vacio } from "../marco";
-import { FormAlta, PersonaGestion } from "../personas";
+import { FormAlta, FormAltaVarios, PersonaGestion } from "../personas";
 import { DIAS } from "../admin/campos";
 
 export default async function Alumnos({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; ver?: string }> }) {
@@ -17,7 +17,7 @@ export default async function Alumnos({ searchParams }: { searchParams: Promise<
   const misGrupos = new Set(grupos.filter((g) => g.profeId === u.id).map((g) => g.id));
   const todos = d.personasDeClub(u.clubId).filter((p) => p.rol === "alumno");
   const verTodos = sp.ver === "club";
-  const lista = verTodos ? todos : todos.filter((p) => p.grupos.some((g) => misGrupos.has(g)) || !p.usuario || !p.activo);
+  const lista = verTodos ? todos : todos.filter((p) => p.grupos.some((g) => misGrupos.has(g)) || p.grupos.length === 0 || !p.usuario || !p.activo);
   const activos = lista.filter((p) => p.activo);
   const inactivos = lista.filter((p) => !p.activo);
   const niveles = d.nivelesDeClub(u.clubId).map((n) => n.nombre);
@@ -34,6 +34,7 @@ export default async function Alumnos({ searchParams }: { searchParams: Promise<
       </Cabecera>
       <div className="body">
         <FormAlta club={u.clubId} grupos={grupos} niveles={niveles} ruta={ruta} />
+        <FormAltaVarios club={u.clubId} grupos={grupos} niveles={niveles} ruta={ruta} />
         {activos.length === 0 && <Vacio titulo="Sin alumnos todavía" texto="Da de alta a tus alumnos con su email." />}
         {!verTodos && grupos.filter((g) => misGrupos.has(g.id)).map((g) => {
           const suyos = activos.filter((p) => p.grupos.includes(g.id));

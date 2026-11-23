@@ -7,7 +7,7 @@ import { cuotaClub, guardarClub, guardarGrupo, borrarGrupo, marcaClub, publicarA
 import { Aviso, EstiloClub, Icono, Marca } from "../../../marco";
 import { Boton } from "../../../cliente";
 import { CamposClub, CamposGrupo, DIAS } from "../../campos";
-import { FormAlta, PersonaGestion } from "../../../personas";
+import { FormAlta, FormAltaVarios, PersonaGestion } from "../../../personas";
 
 export default async function ClubAdmin({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
   await yoAdmin();
@@ -166,6 +166,7 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
 
         <div className="tit-seccion" id="personas"><h2>Personas</h2><span className="meta">{profes.length} profesores · {alumnos.length} alumnos</span></div>
         <FormAlta club={id} grupos={grupos} niveles={niveles} ruta={ruta} puedeProfe />
+        <FormAltaVarios club={id} grupos={grupos} niveles={niveles} ruta={ruta} />
         {personas.map((p) => <PersonaGestion key={p.email} p={p} club={id} grupos={grupos} ruta={ruta} niveles={niveles} />)}
       </div>
     </main>

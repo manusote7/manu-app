@@ -2,6 +2,7 @@
 import { modoSupabase } from "@/lib/supabase";
 import { entrarEmail, entrarAdminPrueba } from "../../acciones";
 import { Boton } from "../../cliente";
+import { EntrarConCodigo } from "../../codigo";
 
 export default async function EntrarAdmin({ searchParams }: { searchParams: Promise<{ error?: string; enviado?: string }> }) {
   const { error, enviado } = await searchParams;
@@ -19,17 +20,14 @@ export default async function EntrarAdmin({ searchParams }: { searchParams: Prom
             <Boton className="btn prim grande">Entrar como administración</Boton>
           </form>
         ) : enviado ? (
-          <div className="card">
-            <h2 style={{ fontSize: "1.2rem" }}>Mira tu correo</h2>
-            <p>Te hemos enviado un enlace a <b>{enviado}</b>. Ábrelo en este mismo dispositivo.</p>
-          </div>
+          <EntrarConCodigo email={enviado} admin error={error} otroEmail="/admin" />
         ) : (
           <form action={entrarEmail} className="card">
             {error && <p className="mensaje" role="alert">{error}</p>}
             <input type="hidden" name="admin" value="1" />
             <label htmlFor="email">Email de administración</label>
             <input id="email" name="email" type="email" className="campo" autoComplete="email" required />
-            <Boton className="btn prim grande">Enviarme el enlace</Boton>
+            <Boton className="btn prim grande">Enviarme el código</Boton>
           </form>
         )}
       </div>

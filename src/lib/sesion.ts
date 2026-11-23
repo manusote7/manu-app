@@ -28,6 +28,7 @@ export async function yo(): Promise<Usuario> {
   }
   if (!id) redirect(`/c/${club.slug}`);
   const u = (await datos()).usuario(id);
+  if (u?.rol === "admin") redirect("/admin"); // administración no es de ningún club: va a su panel
   if (u?.activo === false) {
     redirect(`/c/${club.slug}?error=${encodeURIComponent("Tu cuenta está inactiva. Habla con tu club.")}`);
   }

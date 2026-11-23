@@ -26,6 +26,7 @@ export default async function EntrarClub({ searchParams }: { searchParams: Promi
           <Boton className="btn prim grande">Continuar</Boton>
           <p className="meta">Te lo da tu club. Solo lo pedimos la primera vez.{modoSupabase ? "" : " Prueba: NORTE24 o SUR24."}</p>
         </form>
+        <a href="/admin" className="enlace">Acceso de administración</a>
       </div>
     </main>
   );

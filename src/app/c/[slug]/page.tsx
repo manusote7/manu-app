@@ -6,6 +6,7 @@ import { datos } from "@/lib/repo";
 import { modoSupabase } from "@/lib/supabase";
 import { entrar, entrarEmail, cambiarClub, entrarClub } from "../../acciones";
 import { Boton } from "../../cliente";
+import { EntrarConCodigo } from "../../codigo";
 import { iniciales } from "../../marco";
 
 type SP = Promise<{ error?: string; enviado?: string }>;
@@ -45,18 +46,13 @@ export default async function EntrarPersona({ params, searchParams }: { params: 
       <div className="acceso-form">
         {modoSupabase ? (
           enviado ? (
-            <div className="card">
-              <h2 style={{ fontSize: "1.2rem" }}>Mira tu correo</h2>
-              <p>Te hemos enviado un enlace a <b>{enviado}</b>. Ábrelo en este mismo móvil para entrar.</p>
-              <p className="meta">Si no llega en un minuto, revisa la carpeta de spam.</p>
-              <a className="btn grande" href={`/c/${club.slug}`}>Usar otro email</a>
-            </div>
+            <EntrarConCodigo email={enviado} error={error} otroEmail={`/c/${club.slug}`} />
           ) : (
             <form action={entrarEmail} className="card">
               {aviso}
               <label htmlFor="email">Tu email</label>
               <input id="email" name="email" type="email" className="campo" autoComplete="email" inputMode="email" required placeholder="nombre@email.com" />
-              <Boton className="btn prim grande">Enviarme el enlace</Boton>
+              <Boton className="btn prim grande">Enviarme el código</Boton>
               <p className="meta">Usa el email que diste al club. Sin contraseñas.</p>
             </form>
           )
