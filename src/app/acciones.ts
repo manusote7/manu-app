@@ -120,6 +120,7 @@ export async function guardarFicha(form: FormData) {
 /** Modo prueba: entrar como administración sin email */
 export async function entrarAdminPrueba() {
   (await cookies()).set("uid", "ad", opts);
+  (await cookies()).set("admin_aqui", "1", opts);
   revalidatePath("/", "layout"); // olvida pantallas guardadas de antes de entrar
   redirect("/admin");
 }
@@ -377,6 +378,8 @@ export async function entrarCodigo(form: FormData) {
     const msg = /expired|invalid/i.test(error.message) ? "Código incorrecto o caducado. Revisa el último email o pide otro." : "No se pudo entrar. Prueba otra vez.";
     redirect(`${base}?enviado=${encodeURIComponent(email)}&error=${encodeURIComponent(msg)}`);
   }
+  // En el dispositivo de administración se muestra el enlace a /admin en la portada
+  if (admin) (await cookies()).set("admin_aqui", "1", opts);
   revalidatePath("/", "layout");
   redirect(admin ? "/admin" : "/semana");
 }

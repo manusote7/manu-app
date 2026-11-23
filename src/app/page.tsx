@@ -1,6 +1,7 @@
 // Paso 1: entrar al club con su código.
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { clubElegido } from "@/lib/sesion";
 import { modoSupabase } from "@/lib/supabase";
 import { entrarClub } from "./acciones";
@@ -26,7 +27,8 @@ export default async function EntrarClub({ searchParams }: { searchParams: Promi
           <Boton className="btn prim grande">Continuar</Boton>
           <p className="meta">Te lo da tu club. Solo lo pedimos la primera vez.{modoSupabase ? "" : " Prueba: NORTE24 o SUR24."}</p>
         </form>
-        <a href="/admin" className="enlace">Acceso de administración</a>
+        {/* Solo en el dispositivo donde ya entró administración. /admin exige igualmente el email de administración. */}
+        {(await cookies()).get("admin_aqui") && <a href="/admin" className="enlace">Acceso de administración</a>}
       </div>
     </main>
   );
