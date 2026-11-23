@@ -17,7 +17,7 @@ export default async function Recuperar({ searchParams }: { searchParams: Promis
   return (
     <main className="app">
       <Aviso error={error} />
-      <Cabecera titulo="Recuperar clase" />
+      <Cabecera u={u} titulo="Recuperar clase" />
       <div className="body">
         {creditos.length === 0 ? (
           <Vacio titulo="No tienes clases por recuperar" texto="Cuando avises de que no puedes ir a una clase a tiempo, podrás recuperarla aquí." />

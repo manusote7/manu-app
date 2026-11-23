@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { clubElegido } from "@/lib/sesion";
+import { datos } from "@/lib/repo";
+import type { Club, Usuario } from "@/lib/datos";
 
 const trazo = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
@@ -12,6 +14,8 @@ export const Icono = {
   reloj: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>),
   pelota: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><circle cx="12" cy="12" r="8.5" /><path d="M5 6.5c3 2 3 9 0 11M19 6.5c-3 2-3 9 0 11" /></svg>),
   grupo: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><circle cx="9" cy="8.5" r="3.3" /><path d="M3 19.5a6 6 0 0 1 12 0" /><circle cx="17" cy="9.5" r="2.6" /><path d="M16 14.2a5 5 0 0 1 5.5 5" /></svg>),
+  campana: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden width="20" height="20"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>),
+  megafono: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden><path d="M4 10v4h3l7 4V6L7 10z" /><path d="M17.5 9a4 4 0 0 1 0 6" /></svg>),
   atras: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden width="20" height="20"><path d="M15 5l-7 7 7 7" /></svg>),
   adelante: () => (<svg viewBox="0 0 24 24" {...trazo} aria-hidden width="20" height="20"><path d="M9 5l7 7-7 7" /></svg>),
 };
@@ -20,16 +24,40 @@ export function iniciales(nombre: string) {
   return nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("");
 }
 
-export async function Cabecera({ titulo, children }: { titulo: string; children?: React.ReactNode }) {
-  const club = await clubElegido();
+/** Colores del club: sustituyen el azul base en toda la pantalla */
+export function EstiloClub({ club }: { club?: Club }) {
+  if (!club?.color || !/^#[0-9a-fA-F]{6}$/.test(club.color)) return null;
+  return <style>{`:root{--pista:${club.color};--pista-2:${club.color};--pista-suave:${club.color}1f}`}</style>;
+}
+
+export function Marca({ club, nombre }: { club?: Club; nombre?: string }) {
+  return (
+    <span className="marca" aria-hidden>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {club?.logo ? <img src={club.logo} alt="" /> : iniciales(club?.nombre ?? nombre ?? "P")}
+    </span>
+  );
+}
+
+export async function Cabecera({ titulo, u, children }: { titulo: string; u?: Usuario; children?: React.ReactNode }) {
+  const elegido = await clubElegido();
+  const d = await datos();
+  const club = elegido ? d.clubs.find((c) => c.id === elegido.id) : undefined;
+  const sinLeer = u ? d.avisosDe(u.id).filter((a) => !a.leido).length : 0;
   return (
     <header className="cab">
+      <EstiloClub club={club} />
       <div className="cab-top">
-        <span className="marca" aria-hidden>{iniciales(club?.nombre ?? "P")}</span>
+        <Marca club={club} nombre={elegido?.nombre} />
         <div className="cab-txt">
-          <span className="cab-club">{club?.nombre}</span>
+          <span className="cab-club">{elegido?.nombre}</span>
           <h1>{titulo}</h1>
         </div>
+        {u && (
+          <Link href="/avisos" className="icono-btn campana cab-acc" aria-label={sinLeer ? `${sinLeer} avisos sin leer` : "Avisos"}>
+            <Icono.campana />{sinLeer > 0 && <b>{sinLeer > 9 ? "9+" : sinLeer}</b>}
+          </Link>
+        )}
       </div>
       {children}
     </header>

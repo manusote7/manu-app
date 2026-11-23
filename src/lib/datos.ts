@@ -3,7 +3,12 @@
 import { diaSemana, inicioClase, iso, sumarDias, lunesDe } from "./fechas";
 
 export type Rol = "alumno" | "profe" | "admin";
-export interface Club { id: string; slug: string; codigo: string; nombre: string; horasBaja: number; diasCaducidad: number; maxAlumnos: number }
+export interface Club {
+  id: string; slug: string; codigo: string; nombre: string; horasBaja: number; diasCaducidad: number; maxAlumnos: number;
+  color?: string; logo?: string; cancelarRecupera?: boolean;
+}
+export interface Anuncio { id: string; clubId: string; autorId?: string; texto: string; creado: string }
+export interface AvisoApp { id: string; usuarioId: string; texto: string; enlace?: string; leido: boolean; creado: string }
 export interface Usuario { id: string; clubId: string; nombre: string; rol: Rol; nivel?: string; email?: string; activo?: boolean }
 export interface Ficha { lesiones: string; trabajado: string; aTrabajar: string; actualizado?: string }
 /** Persona dada de alta que quizá aún no ha entrado nunca (solo la ve administración) */
@@ -23,11 +28,17 @@ export interface Db {
   sesiones: Record<string, string>; // `${grupoId}|${fecha}` -> contenido
   bajas: Baja[]; creditos: Credito[]; recuperaciones: Recuperacion[];
   fichas: Record<string, Ficha>; invitaciones: Invitacion[];
+  asistencias: Record<string, boolean>;   // `${grupoId}|${fecha}|${alumnoId}`
+  cancelaciones: Record<string, string>;  // `${grupoId}|${fecha}` -> motivo ("" si no hay)
+  notasPrivadas: Record<string, string>;
+  anuncios: Anuncio[]; avisos: AvisoApp[];
 }
 
 /** Una clase concreta = grupo + fecha */
 export interface Clase {
   grupo: Grupo; fecha: string; inicio: Date; contenido?: string;
+  cancelada?: string;                   // motivo ("" si no hay) cuando la clase se ha cancelado
+  asistencia: Record<string, boolean>;  // alumnoId -> ha venido (si se pasó lista)
   alumnos: Usuario[];          // quién viene (fijos sin baja + recuperaciones aprobadas)
   bajas: Usuario[];
   pendientes: Recuperacion[];
@@ -51,6 +62,8 @@ export function consultas(db: Db) {
     const persona = (i: string): Usuario => usuario(i) ?? { id: i, clubId: gr.clubId, nombre: "Alumno", rol: "alumno" };
     return {
       grupo: gr, fecha, inicio: inicioClase(fecha, gr.hora), contenido: db.sesiones[`${gr.id}|${fecha}`],
+      cancelada: db.cancelaciones[`${gr.id}|${fecha}`],
+      asistencia: Object.fromEntries(ids.filter((i) => `${gr.id}|${fecha}|${i}` in db.asistencias).map((i) => [i, db.asistencias[`${gr.id}|${fecha}|${i}`]])),
       alumnos: ids.map(persona), bajas: bajasIds.map(persona),
       pendientes: recs.filter((r) => r.estado === "pendiente"),
     };
@@ -85,7 +98,7 @@ export function consultas(db: Db) {
     for (let f = iso(ahora); f <= hasta; f = sumarDias(f, 1)) {
       for (const gr of db.grupos.filter((x) => x.clubId === al.clubId && x.nivel === al.nivel)) {
         const c = clase(gr.id, f);
-        if (!c || c.inicio <= ahora || gr.alumnos.includes(alumnoId)) continue;
+        if (!c || c.cancelada !== undefined || c.inicio <= ahora || gr.alumnos.includes(alumnoId)) continue;
         if (c.alumnos.some((a) => a.id === alumnoId) || c.pendientes.some((p) => p.alumnoId === alumnoId)) continue;
         if (c.alumnos.length + c.pendientes.length >= maxDe(gr)) continue;
         out.push(c);
@@ -125,6 +138,9 @@ export function consultas(db: Db) {
   }
 
   return {
+    notasPrivadas: (alumnoId: string) => db.notasPrivadas[alumnoId] ?? "",
+    anunciosDeClub: (clubId: string) => db.anuncios.filter((a) => a.clubId === clubId).sort((a, b) => b.creado.localeCompare(a.creado)),
+    avisosDe: (usuarioId: string) => db.avisos.filter((a) => a.usuarioId === usuarioId).sort((a, b) => b.creado.localeCompare(a.creado)),
     clubs: db.clubs, maxDe, ficha, alumnosDeProfe, gruposDeAlumno, gruposDeClub, personasDeClub,
     usuario, club, grupo, usuariosDeClub, clase, clasesSemana, limiteBaja,
     creditosDisponibles, clasesParaRecuperar, recuperacionesAlumno, pendientesProfe,
@@ -168,7 +184,8 @@ function semilla(): Db {
     sesiones: { [`g1|${sumarDias(lunes, 1)}`]: "Bandeja cruzada y salida de pared" },
     bajas: [], creditos: [], recuperaciones: [],
     fichas: { a1: { lesiones: "Molestias en el codo derecho", trabajado: "Volea de derecha", aTrabajar: "Bandeja y salida de pared" } },
-    invitaciones: [],
+    invitaciones: [], asistencias: {}, cancelaciones: {}, notasPrivadas: {}, avisos: [],
+    anuncios: [{ id: "an1", clubId: "c1", autorId: "p1", texto: "El sábado 28 hay torneo social: las clases de esa mañana se mantienen.", creado: new Date().toISOString() }],
   };
 }
 
@@ -176,6 +193,7 @@ const gl = globalThis as unknown as { __db?: Db };
 export const memoria: Db = (gl.__db ??= semilla());
 memoria.fichas ??= {};
 memoria.invitaciones ??= [];
+memoria.asistencias ??= {}; memoria.cancelaciones ??= {}; memoria.notasPrivadas ??= {}; memoria.anuncios ??= []; memoria.avisos ??= [];
 
 let n = 0;
 const nuevoId = (p: string) => `${p}${Date.now().toString(36)}${(n++).toString(36)}`;
@@ -203,6 +221,8 @@ export const demo = {
     const cred = q.creditosDisponibles(alumnoId).filter((c) => c.caduca >= fecha).sort((a, b) => a.caduca.localeCompare(b.caduca))[0];
     if (!cred) return "No tienes recuperaciones disponibles para esa fecha.";
     memoria.recuperaciones.push({ id: nuevoId("r"), alumnoId, creditoId: cred.id, grupoId, fecha, estado: "pendiente" });
+    const gr = q.grupo(grupoId)!;
+    this.avisar(gr.profeId, `${q.usuario(alumnoId)?.nombre} pide recuperar en ${gr.nombre} el ${fecha}`, `/semana?d=${fecha}`);
     return null;
   },
 
@@ -217,6 +237,7 @@ export const demo = {
       memoria.creditos.find((c) => c.id === r.creditoId)!.usado = true;
     }
     r.estado = aprobar ? "aprobada" : "rechazada";
+    this.avisar(r.alumnoId, `${aprobar ? "Te han aprobado la recuperación" : "No hay plaza para tu recuperación"}: ${gr.nombre}, ${r.fecha} a las ${gr.hora}`, `/semana?d=${r.fecha}`);
     return null;
   },
 
@@ -286,6 +307,65 @@ export const demo = {
     const g = memoria.grupos.find((x) => x.id === grupoId);
     if (!g || g.profeId !== profeId) return "Esa clase no es tuya.";
     g.max = Math.max(1, max);
+    return null;
+  },
+  // --- Club vivo (modo prueba) ---
+  avisar(usuarioId: string | undefined, texto: string, enlace?: string) {
+    if (usuarioId) memoria.avisos.push({ id: nuevoId("av"), usuarioId, texto, enlace, leido: false, creado: new Date().toISOString() });
+  },
+  marcarLeidos(usuarioId: string) {
+    memoria.avisos.forEach((a) => { if (a.usuarioId === usuarioId) a.leido = true; });
+  },
+  pasarLista(profeId: string, grupoId: string, fecha: string, lista: string[], presentes: string[]): string | null {
+    const g = memoria.grupos.find((x) => x.id === grupoId);
+    if (!g || g.profeId !== profeId) return "Esa clase no es tuya.";
+    for (const a of lista) memoria.asistencias[`${grupoId}|${fecha}|${a}`] = presentes.includes(a);
+    return null;
+  },
+  cancelarClase(uid: string, grupoId: string, fecha: string, motivo: string): string | null {
+    const q = consultas(memoria);
+    const c = q.clase(grupoId, fecha);
+    const yo = q.usuario(uid);
+    if (!c || (c.grupo.profeId !== uid && yo?.rol !== "admin")) return "Esa clase no es tuya.";
+    if (c.cancelada !== undefined) return "Esa clase ya está cancelada.";
+    memoria.cancelaciones[`${grupoId}|${fecha}`] = motivo.trim();
+    const club = q.club(c.grupo.clubId);
+    const recupera = club.cancelarRecupera !== false;
+    for (const a of c.alumnos) {
+      if (recupera && c.grupo.alumnos.includes(a.id)) {
+        const b = { id: nuevoId("b"), alumnoId: a.id, grupoId, fecha };
+        memoria.bajas.push(b);
+        memoria.creditos.push({ id: nuevoId("cr"), alumnoId: a.id, bajaId: b.id, caduca: sumarDias(fecha, club.diasCaducidad), usado: false });
+      }
+      this.avisar(a.id, `Se cancela ${c.grupo.nombre} del ${fecha}${recupera ? ". Tienes una recuperación." : "."}${motivo.trim() ? ` Motivo: ${motivo.trim()}` : ""}`, `/semana?d=${fecha}`);
+    }
+    memoria.recuperaciones.forEach((r) => { if (r.grupoId === grupoId && r.fecha === fecha && r.estado === "pendiente") r.estado = "rechazada"; });
+    return null;
+  },
+  notasPrivadas(profeId: string, alumnoId: string, texto: string): string | null {
+    const p = memoria.usuarios.find((x) => x.id === profeId);
+    const a = memoria.usuarios.find((x) => x.id === alumnoId);
+    if (!p || !a || p.rol !== "profe" || p.clubId !== a.clubId) return "Solo los profes del club pueden editar la ficha.";
+    memoria.notasPrivadas[alumnoId] = texto.trim();
+    return null;
+  },
+  publicarAnuncio(uid: string, clubId: string, texto: string): string | null {
+    const u = memoria.usuarios.find((x) => x.id === uid);
+    if (!u || !(u.rol === "admin" || (u.rol === "profe" && u.clubId === clubId))) return "Solo profes y administración pueden publicar.";
+    if (!texto.trim()) return "Escribe el anuncio.";
+    memoria.anuncios.push({ id: nuevoId("an"), clubId, autorId: uid, texto: texto.trim(), creado: new Date().toISOString() });
+    memoria.usuarios.filter((x) => x.clubId === clubId && x.id !== uid && x.activo !== false)
+      .forEach((x) => this.avisar(x.id, `Nuevo anuncio: ${texto.trim().slice(0, 80)}`, "/semana"));
+    return null;
+  },
+  borrarAnuncio(uid: string, id: string): string | null {
+    const u = memoria.usuarios.find((x) => x.id === uid);
+    memoria.anuncios = memoria.anuncios.filter((a) => !(a.id === id && (a.autorId === uid || u?.rol === "admin")));
+    return null;
+  },
+  marcaClub(clubId: string, color: string, logo: string, cancelarRecupera: boolean): string | null {
+    if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return "El color tiene que ser como #123F6B.";
+    Object.assign(memoria.clubs.find((c) => c.id === clubId)!, { color: color || undefined, logo: logo.trim() || undefined, cancelarRecupera });
     return null;
   },
 };

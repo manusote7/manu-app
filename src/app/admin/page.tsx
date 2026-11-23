@@ -5,7 +5,7 @@ import { datos } from "@/lib/repo";
 import { adminActual } from "@/lib/sesion";
 import EntrarAdmin from "./entrar/page";
 import { guardarClub, salirAdmin } from "../acciones";
-import { Aviso, Vacio, iniciales } from "../marco";
+import { Aviso, Marca, Vacio } from "../marco";
 import { Boton } from "../cliente";
 import { CamposClub } from "./campos";
 
@@ -32,7 +32,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
           return (
             <Link key={c.id} href={`/admin/club/${c.id}`} className="card">
               <div className="fila-club">
-                <span className="marca" aria-hidden>{iniciales(c.nombre)}</span>
+                <Marca club={c} />
                 <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
                   <h3>{c.nombre}</h3>
                   <span className="meta">Código <span className="codigo-club">{c.codigo}</span> · /c/{c.slug}</span>

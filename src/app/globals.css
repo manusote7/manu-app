@@ -212,3 +212,16 @@ details.bloque > .form, details.bloque > .contenido { padding: 0 14px 14px; }
 .texto-ficha { white-space: pre-wrap; }
 .aviso-lesion { background: var(--mal-suave); color: var(--mal); border-radius: 12px; padding: 10px 12px; font-size: .88rem; display: grid; gap: 2px; }
 .aviso-lesion small { font-weight: 700; text-transform: uppercase; font-size: .68rem; letter-spacing: .06em; }
+.chip.asis { cursor: pointer; position: relative; }
+.chip.asis input { position: absolute; opacity: 0; pointer-events: none; }
+.chip.asis:has(input:not(:checked)) { opacity: .5; text-decoration: line-through; }
+.chip.asis:has(input:focus-visible) { outline: 2px solid var(--pista-2); }
+.lista-asis { display: grid; gap: 10px; }
+.anuncio { gap: 6px; }
+.anuncio-txt { font-size: .92rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.campana { position: relative; }
+.campana b { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--mal); color: #fff;
+  font-size: .68rem; display: grid; place-items: center; padding: 0 4px; font-variant-numeric: tabular-nums; }
+.marca img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.aviso-item { display: grid; gap: 2px; }
+.aviso-item.nuevo { border-left: 3px solid var(--pista-2); }

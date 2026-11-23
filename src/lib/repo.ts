@@ -7,8 +7,8 @@ import { modoSupabase, sb } from "./supabase";
 /** Lee todo lo del club del usuario conectado. Las reglas de seguridad de Supabase filtran por club. */
 async function foto(): Promise<Db> {
   const s = await sb();
-  const [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs, fichas, invs] = await Promise.all([
-    s.from("clubs").select("id, slug, codigo_acceso, nombre, horas_antelacion_baja, dias_caducidad_recuperacion, max_alumnos_clase"),
+  const [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs, fichas, invs, asis, canc, notas, anun, avs] = await Promise.all([
+    s.from("clubs").select("*"),
     s.from("usuarios").select("*"),
     s.from("grupos").select("*"),
     s.from("grupo_alumnos").select("grupo_id, alumno_id"),
@@ -19,6 +19,12 @@ async function foto(): Promise<Db> {
     // Estas dos pueden no existir aún (supabase/04_admin.sql): si fallan, se dejan vacías
     s.from("fichas").select("alumno_id, lesiones, trabajado, a_trabajar, actualizado_en"),
     s.from("invitaciones").select("email, club_id, nombre, rol, nivel, grupos"),
+    // De supabase/05_club_vivo.sql (también opcionales)
+    s.from("asistencias").select("grupo_id, fecha, alumno_id, presente"),
+    s.from("cancelaciones").select("grupo_id, fecha, motivo"),
+    s.from("notas_privadas").select("alumno_id, texto"),
+    s.from("anuncios").select("id, club_id, autor_id, texto, creado_en").order("creado_en", { ascending: false }).limit(50),
+    s.from("avisos").select("id, usuario_id, texto, enlace, leido, creado_en").order("creado_en", { ascending: false }).limit(30),
   ]);
   const error = [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs].find((r) => r.error)?.error;
   if (error) throw new Error(`No se pudieron leer los datos: ${error.message}`);
@@ -26,6 +32,7 @@ async function foto(): Promise<Db> {
     clubs: clubs.data!.map((c) => ({
       id: c.id, slug: c.slug, codigo: c.codigo_acceso ?? "", nombre: c.nombre,
       horasBaja: c.horas_antelacion_baja, diasCaducidad: c.dias_caducidad_recuperacion, maxAlumnos: c.max_alumnos_clase,
+      color: c.color ?? undefined, logo: c.logo_url ?? undefined, cancelarRecupera: c.cancelar_da_recuperacion ?? true,
     })),
     usuarios: usuarios.data!.map((u) => ({ id: u.id, clubId: u.club_id ?? "", nombre: u.nombre, rol: u.rol, nivel: u.nivel ?? undefined, email: u.email, activo: u.activo !== false })),
     grupos: grupos.data!.map((g) => ({
@@ -42,6 +49,11 @@ async function foto(): Promise<Db> {
     fichas: Object.fromEntries((fichas.data ?? []).map((f) => [f.alumno_id, {
       lesiones: f.lesiones, trabajado: f.trabajado, aTrabajar: f.a_trabajar, actualizado: f.actualizado_en,
     }])),
+    asistencias: Object.fromEntries((asis.data ?? []).map((x) => [`${x.grupo_id}|${x.fecha}|${x.alumno_id}`, x.presente])),
+    cancelaciones: Object.fromEntries((canc.data ?? []).map((x) => [`${x.grupo_id}|${x.fecha}`, x.motivo ?? ""])),
+    notasPrivadas: Object.fromEntries((notas.data ?? []).map((x) => [x.alumno_id, x.texto])),
+    anuncios: (anun.data ?? []).map((x) => ({ id: x.id, clubId: x.club_id, autorId: x.autor_id ?? undefined, texto: x.texto, creado: x.creado_en })),
+    avisos: (avs.data ?? []).map((x) => ({ id: x.id, usuarioId: x.usuario_id, texto: x.texto, enlace: x.enlace ?? undefined, leido: x.leido, creado: x.creado_en })),
     invitaciones: (invs.data ?? []).map((i) => ({
       email: i.email, clubId: i.club_id ?? "", nombre: i.nombre, rol: i.rol, nivel: i.nivel ?? undefined, grupos: i.grupos ?? [],
     })),
@@ -105,4 +117,25 @@ export const acciones = {
       : Promise.resolve(demo.cambiarActivo(club, email, activo)),
   maxGrupo: (uid: string, grupo: string, max: number) =>
     modoSupabase ? rpc("profe_max_grupo", { p_grupo: grupo, p_max: max }) : Promise.resolve(demo.maxGrupo(uid, grupo, max)),
+
+  // --- Club vivo ---
+  marcarLeidos: (uid: string) => (modoSupabase ? rpc("marcar_avisos_leidos", {}) : Promise.resolve((demo.marcarLeidos(uid), null))),
+  pasarLista: (uid: string, grupo: string, fecha: string, lista: string[], presentes: string[]) =>
+    modoSupabase
+      ? rpc("pasar_lista", { p_grupo: grupo, p_fecha: fecha, p_lista: lista, p_presentes: presentes })
+      : Promise.resolve(demo.pasarLista(uid, grupo, fecha, lista, presentes)),
+  cancelarClase: (uid: string, grupo: string, fecha: string, motivo: string) =>
+    modoSupabase
+      ? rpc("cancelar_clase", { p_grupo: grupo, p_fecha: fecha, p_motivo: motivo })
+      : Promise.resolve(demo.cancelarClase(uid, grupo, fecha, motivo)),
+  notasPrivadas: (uid: string, alumno: string, texto: string) =>
+    modoSupabase ? rpc("guardar_notas_privadas", { p_alumno: alumno, p_texto: texto }) : Promise.resolve(demo.notasPrivadas(uid, alumno, texto)),
+  publicarAnuncio: (uid: string, club: string, texto: string) =>
+    modoSupabase ? rpc("publicar_anuncio", { p_club: club, p_texto: texto }) : Promise.resolve(demo.publicarAnuncio(uid, club, texto)),
+  borrarAnuncio: (uid: string, id: string) =>
+    modoSupabase ? rpc("borrar_anuncio", { p_id: id }) : Promise.resolve(demo.borrarAnuncio(uid, id)),
+  marcaClub: (club: string, color: string, logo: string, cancelarRecupera: boolean) =>
+    modoSupabase
+      ? rpc("admin_marca_club", { p_club: club, p_color: color || null, p_logo: logo, p_cancelar_recupera: cancelarRecupera })
+      : Promise.resolve(demo.marcaClub(club, color, logo, cancelarRecupera)),
 };

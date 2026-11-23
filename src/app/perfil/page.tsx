@@ -16,7 +16,7 @@ export default async function Perfil() {
   const rol = { alumno: "Alumno", profe: "Profe", admin: "Administración" }[u.rol];
   return (
     <main className="app">
-      <Cabecera titulo="Perfil" />
+      <Cabecera u={u} titulo="Perfil" />
       <div className="body">
         <div className="perfil">
           <span className="ini">{iniciales(u.nombre)}</span>

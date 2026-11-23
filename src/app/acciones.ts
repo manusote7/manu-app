@@ -109,7 +109,8 @@ export async function guardarFicha(form: FormData) {
   const u = await yo();
   const alumno = String(form.get("alumno"));
   const t = (k: string) => String(form.get(k) ?? "").trim();
-  const err = await a.guardarFicha(u.id, alumno, { lesiones: t("lesiones"), trabajado: t("trabajado"), aTrabajar: t("aTrabajar") });
+  let err = await a.guardarFicha(u.id, alumno, { lesiones: t("lesiones"), trabajado: t("trabajado"), aTrabajar: t("aTrabajar") });
+  err ??= await a.notasPrivadas(u.id, alumno, t("privadas"));
   volver(`/alumnos/${alumno}`, err, "Ficha guardada.");
 }
 
@@ -235,4 +236,52 @@ export async function cambiarNivel(form: FormData) {
   const nivel = txt(form, "nivel");
   const err = nivel ? await a.alta(club, txt(form, "email"), txt(form, "nombre"), "alumno", nivel) : "Escribe un nivel.";
   volver(rutaGestion(form, club), err, `Nivel cambiado a ${nivel}.`);
+}
+
+// ---------- Club vivo ----------
+
+/** Quien está conectado: administración o alguien del club */
+async function quien() {
+  const id = modoSupabase
+    ? (await (await sb()).auth.getClaims()).data?.claims?.sub
+    : (await cookies()).get("uid")?.value;
+  const u = id ? (await datos()).usuario(id) : undefined;
+  if (!u) redirect("/");
+  return u;
+}
+
+export async function pasarLista(form: FormData) {
+  const u = await yo();
+  const lista = String(form.get("lista") ?? "").split(",").filter(Boolean);
+  const presentes = form.getAll("presente").map(String);
+  const err = await a.pasarLista(u.id, txt(form, "grupo"), txt(form, "fecha"), lista, presentes);
+  volver(txt(form, "ruta") || "/semana", err, `Lista guardada: ${presentes.length} de ${lista.length}.`);
+}
+
+export async function cancelarClase(form: FormData) {
+  const u = await quien();
+  const ruta = txt(form, "ruta") || "/semana";
+  if (txt(form, "confirmar") !== "si") volver(ruta, "Marca la casilla para confirmar la cancelación.", "");
+  const err = await a.cancelarClase(u.id, txt(form, "grupo"), txt(form, "fecha"), txt(form, "motivo"));
+  volver(ruta, err, "Clase cancelada. Hemos avisado a los alumnos.");
+}
+
+export async function publicarAnuncio(form: FormData) {
+  const u = await quien();
+  const club = u.rol === "admin" ? txt(form, "club") : u.clubId;
+  const err = await a.publicarAnuncio(u.id, club, txt(form, "texto"));
+  volver(txt(form, "ruta") || "/semana", err, "Anuncio publicado.");
+}
+
+export async function borrarAnuncio(form: FormData) {
+  const u = await quien();
+  const err = await a.borrarAnuncio(u.id, txt(form, "id"));
+  volver(txt(form, "ruta") || "/semana", err, "Anuncio borrado.");
+}
+
+export async function marcaClub(form: FormData) {
+  await yoAdmin();
+  const club = txt(form, "club");
+  const err = await a.marcaClub(club, txt(form, "color"), txt(form, "logo"), form.get("recupera") === "on");
+  volver(`/admin/club/${club}`, err, "Marca y reglas guardadas.");
 }

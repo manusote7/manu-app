@@ -6,7 +6,7 @@ import type { Clase, Usuario, Recuperacion, Consultas } from "@/lib/datos";
 import { datos } from "@/lib/repo";
 import { fechaCorta, formatoLimite, horaFin, iso, letraDia, lunesDe, nombreDia, sumarDias, deIso } from "@/lib/fechas";
 import { yo } from "@/lib/sesion";
-import { darBaja, guardarMax, guardarSesion, resolver } from "../acciones";
+import { cancelarClase, darBaja, guardarMax, guardarSesion, pasarLista, resolver } from "../acciones";
 import { Aviso, Cabecera, Icono, Nav, Vacio, iniciales } from "../marco";
 import { Boton, Dias } from "../cliente";
 
@@ -50,7 +50,7 @@ export default async function MiSemana({ searchParams }: { searchParams: SP }) {
   return (
     <main className="app">
       <Aviso ok={sp.ok} error={sp.error} />
-      <Cabecera titulo={esProfe ? "Mis clases" : "Mi semana"}>
+      <Cabecera u={u} titulo={esProfe ? "Mis clases" : "Mi semana"}>
         <div className="sem">
           <Link className="icono-btn" href={`/semana?d=${sumarDias(lunes, -7)}`} aria-label="Semana anterior"><Icono.atras /></Link>
           <span className="sem-rango">{fechaCorta(lunes)} – {fechaCorta(sumarDias(lunes, 6))}</span>
@@ -60,6 +60,7 @@ export default async function MiSemana({ searchParams }: { searchParams: SP }) {
 
       <div className="body">
         {esProfe ? <Solicitudes profeId={u.id} d={d} ruta={`/semana?d=${dia}`} /> : <Creditos alumnoId={u.id} d={d} />}
+        <TablonResumen u={u} d={d} />
         <Dias
           inicial={dia}
           paneles={paneles}
@@ -113,7 +114,19 @@ function ClaseAlumno({ c, u, d, recs, hoy }: { c: Clase; u: Usuario; d: Consulta
     );
   }
 
+  if (c.cancelada !== undefined) {
+    return (
+      <div className="clase">
+        <Hora c={c} />
+        <div className="card apagada">
+          <div className="card-cab"><h3>{c.grupo.nombre}</h3><span className="pill gris">Cancelada</span></div>
+          <p className="meta">{c.cancelada ? `Motivo: ${c.cancelada}` : "El club ha cancelado esta clase."}</p>
+        </div>
+      </div>
+    );
+  }
   const deBaja = c.bajas.some((b) => b.id === u.id);
+  const vino = c.asistencia[u.id];
   const limite = d.limiteBaja(c);
   return (
     <div className="clase">
@@ -121,7 +134,7 @@ function ClaseAlumno({ c, u, d, recs, hoy }: { c: Clase; u: Usuario; d: Consulta
       <div className={`card${pasada || deBaja ? " apagada" : ""}`}>
         <div className="card-cab">
           <h3>{c.grupo.nombre}</h3>
-          {deBaja ? <span className="pill gris">De baja</span> : pasada ? <span className="pill gris">Hecha</span> : <span className="pill nivel">{c.grupo.nivel}</span>}
+          {deBaja ? <span className="pill gris">De baja</span> : pasada ? <span className={`pill ${vino === false ? "warn" : "gris"}`}>{vino === false ? "No viniste" : vino ? "Asististe" : "Hecha"}</span> : <span className="pill nivel">{c.grupo.nivel}</span>}
         </div>
         <Datos c={c} profe={profe} />
         {c.contenido && <div className="sesion"><small>Qué vais a trabajar</small>{c.contenido}</div>}
@@ -191,6 +204,29 @@ function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
   const max = d.maxDe(c.grupo);
   const fijos = new Set(c.grupo.alumnos);
   const ruta = `/semana?d=${c.fecha}`;
+  const ahora = new Date();
+  const empezada = c.inicio <= ahora;
+  const listaPasada = c.alumnos.some((a) => a.id in c.asistencia);
+  const ocultos = (
+    <>
+      <input type="hidden" name="grupo" value={c.grupo.id} />
+      <input type="hidden" name="fecha" value={c.fecha} />
+      <input type="hidden" name="ruta" value={ruta} />
+    </>
+  );
+
+  if (c.cancelada !== undefined) {
+    return (
+      <div className="clase">
+        <Hora c={c} />
+        <div className="card apagada">
+          <div className="card-cab"><h3>{c.grupo.nombre}</h3><span className="pill gris">Cancelada</span></div>
+          {c.cancelada && <p className="meta">Motivo: {c.cancelada}</p>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="clase">
       <Hora c={c} />
@@ -203,36 +239,70 @@ function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
           </span>
         </div>
         <Datos c={c} />
-        <div className="alumnos">
-          {c.alumnos.map((a) => (
-            <span key={a.id} className={`chip${fijos.has(a.id) ? "" : " recupera"}`} title={fijos.has(a.id) ? undefined : "Viene a recuperar"}>
-              <span className="ini">{iniciales(a.nombre)}</span>{a.nombre.split(" ")[0]}
-            </span>
-          ))}
-          {c.bajas.map((a) => (
-            <span key={a.id} className="chip baja" title="De baja"><span className="ini">{iniciales(a.nombre)}</span>{a.nombre.split(" ")[0]}</span>
-          ))}
-        </div>
+        {/* Pasar lista: se marcan los que han venido */}
+        <form action={pasarLista} className="lista-asis">
+          {ocultos}
+          <input type="hidden" name="lista" value={c.alumnos.map((a) => a.id).join(",")} />
+          <div className="alumnos">
+            {c.alumnos.map((a) => (
+              <label key={a.id} className={`chip asis${fijos.has(a.id) ? "" : " recupera"}`} title={fijos.has(a.id) ? undefined : "Viene a recuperar"}>
+                <input type="checkbox" name="presente" value={a.id} defaultChecked={c.asistencia[a.id] ?? true} />
+                <span className="ini">{iniciales(a.nombre)}</span>{a.nombre.split(" ")[0]}
+              </label>
+            ))}
+            {c.bajas.map((a) => (
+              <span key={a.id} className="chip baja" title="De baja"><span className="ini">{iniciales(a.nombre)}</span>{a.nombre.split(" ")[0]}</span>
+            ))}
+          </div>
+          {c.alumnos.length > 0 && (empezada || c.fecha === iso(ahora)) && (
+            <div className="acciones">
+              <Boton className={listaPasada ? "btn" : "btn prim"}>{listaPasada ? "Actualizar lista" : "Pasar lista"}</Boton>
+              <span className="meta">{listaPasada ? `Han venido ${Object.values(c.asistencia).filter(Boolean).length}` : "Desmarca a quien no venga"}</span>
+            </div>
+          )}
+        </form>
         {c.contenido && <div className="sesion"><small>Sesión</small>{c.contenido}</div>}
         <details className="editar">
           <summary>{c.contenido ? "Editar sesión y plazas" : "+ Preparar sesión y plazas"}</summary>
           <form action={guardarSesion}>
-            <input type="hidden" name="grupo" value={c.grupo.id} />
-            <input type="hidden" name="fecha" value={c.fecha} />
-            <input type="hidden" name="ruta" value={ruta} />
+            {ocultos}
             <textarea name="contenido" rows={3} defaultValue={c.contenido} placeholder="Ej. bandeja cruzada y salida de pared" aria-label="Contenido de la sesión" />
             <Boton className="btn prim">Guardar sesión</Boton>
           </form>
           <form action={guardarMax} className="fila" style={{ alignItems: "end", marginTop: 10 }}>
-            <input type="hidden" name="grupo" value={c.grupo.id} />
-            <input type="hidden" name="ruta" value={ruta} />
+            {ocultos}
             <label className="meta" style={{ display: "grid", gap: 4 }}>Máximo de alumnos del grupo
               <input name="max" type="number" min="1" max="12" className="campo" defaultValue={max} />
             </label>
             <Boton className="btn">Guardar máximo</Boton>
           </form>
         </details>
+        {!empezada && (
+          <details className="editar">
+            <summary style={{ color: "var(--mal)" }}>Cancelar esta clase</summary>
+            <form action={cancelarClase}>
+              {ocultos}
+              <input name="motivo" className="campo" placeholder="Motivo (opcional), ej. lluvia" aria-label="Motivo" />
+              <label className="meta" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="checkbox" name="confirmar" value="si" /> Sí, cancelar la clase del {fechaCorta(c.fecha)} y avisar a los alumnos
+              </label>
+              <Boton className="btn peligro">Cancelar clase</Boton>
+            </form>
+          </details>
+        )}
       </div>
     </div>
+  );
+}
+
+function TablonResumen({ u, d }: { u: Usuario; d: Consultas }) {
+  const anuncios = d.anunciosDeClub(u.clubId);
+  if (!anuncios.length && u.rol !== "profe") return null;
+  const a = anuncios[0];
+  return (
+    <Link href="/tablon" className="card anuncio">
+      <div className="card-cab"><span className="seccion">Tablón del club</span><span className="meta">{anuncios.length > 1 ? `Ver los ${anuncios.length} ›` : "Ver ›"}</span></div>
+      {a ? <p className="anuncio-txt">{a.texto}</p> : <p className="meta">Publica avisos para todo el club.</p>}
+    </Link>
   );
 }

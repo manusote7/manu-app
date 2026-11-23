@@ -4,8 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { datos } from "@/lib/repo";
 import { yoAdmin } from "@/lib/sesion";
-import { guardarClub, guardarGrupo, borrarGrupo } from "../../../acciones";
-import { Aviso, Icono, iniciales } from "../../../marco";
+import { guardarClub, guardarGrupo, borrarGrupo, marcaClub, publicarAnuncio } from "../../../acciones";
+import { Aviso, EstiloClub, Icono, Marca } from "../../../marco";
 import { Boton } from "../../../cliente";
 import { CamposClub, CamposGrupo, DIAS } from "../../campos";
 import { FormAlta, PersonaGestion } from "../../../personas";
@@ -29,10 +29,11 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
   return (
     <main className="app ancha">
       <Aviso ok={sp.ok} error={sp.error} />
+      <EstiloClub club={club} />
       <header className="cab">
         <div className="cab-top">
           <Link href="/admin" className="icono-btn" aria-label="Volver a clubs"><Icono.atras /></Link>
-          <span className="marca" aria-hidden>{iniciales(club.nombre)}</span>
+          <Marca club={club} />
           <div className="cab-txt"><span className="cab-club">Código <span className="codigo-club">{club.codigo}</span></span><h1>{club.nombre}</h1></div>
         </div>
       </header>
@@ -43,6 +44,32 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
             <input type="hidden" name="id" value={club.id} />
             <CamposClub c={club} />
             <div><Boton className="btn prim">Guardar</Boton></div>
+          </form>
+        </details>
+
+        <details className="bloque">
+          <summary><b>Logo, color y cancelaciones</b></summary>
+          <form action={marcaClub} className="form">
+            <input type="hidden" name="club" value={id} />
+            <div className="fila">
+              <label>Color principal<input name="color" type="color" className="campo" style={{ height: 46, padding: 4 }} defaultValue={club.color ?? "#123f6b"} /></label>
+              <label>Logo (enlace a la imagen)<input name="logo" type="url" className="campo" defaultValue={club.logo} placeholder="https://…/logo.png" /></label>
+            </div>
+            <label style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--fg)", fontWeight: 500 }}>
+              <input type="checkbox" name="recupera" defaultChecked={club.cancelarRecupera !== false} />
+              Si un profe cancela una clase, cada alumno recibe una recuperación
+            </label>
+            <div><Boton className="btn prim">Guardar</Boton></div>
+          </form>
+        </details>
+
+        <details className="bloque">
+          <summary><b>Publicar en el tablón</b><span className="meta">{d.anunciosDeClub(id).length} anuncios</span></summary>
+          <form action={publicarAnuncio} className="form">
+            <input type="hidden" name="club" value={id} />
+            <input type="hidden" name="ruta" value={`/admin/club/${id}`} />
+            <textarea name="texto" rows={3} required placeholder="Anuncio para todo el club" aria-label="Anuncio" />
+            <div><Boton className="btn prim">Publicar</Boton></div>
           </form>
         </details>
 

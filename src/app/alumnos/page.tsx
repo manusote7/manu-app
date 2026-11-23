@@ -26,7 +26,7 @@ export default async function Alumnos({ searchParams }: { searchParams: Promise<
   return (
     <main className="app">
       <Aviso ok={sp.ok} error={sp.error} />
-      <Cabecera titulo="Alumnos">
+      <Cabecera u={u} titulo="Alumnos">
         <div className="checks" role="tablist">
           <Link className="btn" aria-current={!verTodos ? "page" : undefined} href="/alumnos" style={!verTodos ? { background: "var(--pista)", color: "#fff", borderColor: "var(--pista)" } : undefined}>Mis grupos</Link>
           <Link className="btn" aria-current={verTodos ? "page" : undefined} href="/alumnos?ver=club" style={verTodos ? { background: "var(--pista)", color: "#fff", borderColor: "var(--pista)" } : undefined}>Todo el club</Link>
