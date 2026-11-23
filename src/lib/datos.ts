@@ -7,6 +7,7 @@ export interface Club {
   id: string; slug: string; codigo: string; nombre: string; horasBaja: number; diasCaducidad: number; maxAlumnos: number;
   color?: string; logo?: string; cancelarRecupera?: boolean;
 }
+export interface Nivel { id: string; clubId: string; nombre: string; orden: number }
 export interface Anuncio { id: string; clubId: string; autorId?: string; texto: string; creado: string }
 export interface AvisoApp { id: string; usuarioId: string; texto: string; enlace?: string; leido: boolean; creado: string }
 export interface Usuario { id: string; clubId: string; nombre: string; rol: Rol; nivel?: string; email?: string; activo?: boolean }
@@ -32,6 +33,7 @@ export interface Db {
   cancelaciones: Record<string, string>;  // `${grupoId}|${fecha}` -> motivo ("" si no hay)
   notasPrivadas: Record<string, string>;
   anuncios: Anuncio[]; avisos: AvisoApp[];
+  niveles: Nivel[];
 }
 
 /** Una clase concreta = grupo + fecha */
@@ -138,6 +140,13 @@ export function consultas(db: Db) {
   }
 
   return {
+    /** Niveles del club en orden. Si el club aún no tiene lista, los que ya se usan. */
+    nivelesDeClub(clubId: string): Nivel[] {
+      const def = db.niveles.filter((n) => n.clubId === clubId).sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre));
+      if (def.length) return def;
+      const usados = [...new Set([...db.grupos.filter((g) => g.clubId === clubId).map((g) => g.nivel), ...usuariosDeClub(clubId).map((u) => u.nivel ?? "")].filter(Boolean))].sort();
+      return usados.map((nombre, i) => ({ id: "", clubId, nombre, orden: i + 1 }));
+    },
     notasPrivadas: (alumnoId: string) => db.notasPrivadas[alumnoId] ?? "",
     anunciosDeClub: (clubId: string) => db.anuncios.filter((a) => a.clubId === clubId).sort((a, b) => b.creado.localeCompare(a.creado)),
     avisosDe: (usuarioId: string) => db.avisos.filter((a) => a.usuarioId === usuarioId).sort((a, b) => b.creado.localeCompare(a.creado)),
@@ -184,6 +193,7 @@ function semilla(): Db {
     sesiones: { [`g1|${sumarDias(lunes, 1)}`]: "Bandeja cruzada y salida de pared" },
     bajas: [], creditos: [], recuperaciones: [],
     fichas: { a1: { lesiones: "Molestias en el codo derecho", trabajado: "Volea de derecha", aTrabajar: "Bandeja y salida de pared" } },
+    niveles: ["Iniciación", "Intermedio", "Avanzado"].map((nombre, i) => ({ id: `n${i}`, clubId: "c1", nombre, orden: i + 1 })),
     invitaciones: [], asistencias: {}, cancelaciones: {}, notasPrivadas: {}, avisos: [],
     anuncios: [{ id: "an1", clubId: "c1", autorId: "p1", texto: "El sábado 28 hay torneo social: las clases de esa mañana se mantienen.", creado: new Date().toISOString() }],
   };
@@ -193,6 +203,7 @@ const gl = globalThis as unknown as { __db?: Db };
 export const memoria: Db = (gl.__db ??= semilla());
 memoria.fichas ??= {};
 memoria.invitaciones ??= [];
+memoria.niveles ??= [];
 memoria.asistencias ??= {}; memoria.cancelaciones ??= {}; memoria.notasPrivadas ??= {}; memoria.anuncios ??= []; memoria.avisos ??= [];
 
 let n = 0;
@@ -366,6 +377,30 @@ export const demo = {
   marcaClub(clubId: string, color: string, logo: string, cancelarRecupera: boolean): string | null {
     if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return "El color tiene que ser como #123F6B.";
     Object.assign(memoria.clubs.find((c) => c.id === clubId)!, { color: color || undefined, logo: logo.trim() || undefined, cancelarRecupera });
+    return null;
+  },
+  guardarNivel(id: string | null, clubId: string, nombre: string, orden?: number): string | null {
+    const n = nombre.trim();
+    if (!n) return "Escribe el nombre del nivel.";
+    if (memoria.niveles.some((x) => x.clubId === clubId && x.nombre === n && x.id !== id)) return "Ese nivel ya existe.";
+    if (!id) {
+      const max = Math.max(0, ...memoria.niveles.filter((x) => x.clubId === clubId).map((x) => x.orden));
+      memoria.niveles.push({ id: nuevoId("n"), clubId, nombre: n, orden: orden ?? max + 1 });
+      return null;
+    }
+    const v = memoria.niveles.find((x) => x.id === id)!;
+    const antes = v.nombre;
+    Object.assign(v, { nombre: n, orden: orden ?? v.orden });
+    memoria.grupos.forEach((g) => { if (g.clubId === clubId && g.nivel === antes) g.nivel = n; });
+    memoria.usuarios.forEach((u) => { if (u.clubId === clubId && u.nivel === antes) u.nivel = n; });
+    return null;
+  },
+  borrarNivel(id: string): string | null {
+    const v = memoria.niveles.find((x) => x.id === id);
+    if (!v) return null;
+    if (memoria.grupos.some((g) => g.clubId === v.clubId && g.nivel === v.nombre) || memoria.usuarios.some((u) => u.clubId === v.clubId && u.nivel === v.nombre))
+      return "Ese nivel tiene grupos o alumnos. Cámbialos de nivel antes de borrarlo.";
+    memoria.niveles = memoria.niveles.filter((x) => x.id !== id);
     return null;
   },
 };

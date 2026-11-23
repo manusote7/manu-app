@@ -7,7 +7,7 @@ import { modoSupabase, sb } from "./supabase";
 /** Lee todo lo del club del usuario conectado. Las reglas de seguridad de Supabase filtran por club. */
 async function foto(): Promise<Db> {
   const s = await sb();
-  const [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs, fichas, invs, asis, canc, notas, anun, avs] = await Promise.all([
+  const [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs, fichas, invs, asis, canc, notas, anun, avs, nivs] = await Promise.all([
     s.from("clubs").select("*"),
     s.from("usuarios").select("*"),
     s.from("grupos").select("*"),
@@ -25,6 +25,7 @@ async function foto(): Promise<Db> {
     s.from("notas_privadas").select("alumno_id, texto"),
     s.from("anuncios").select("id, club_id, autor_id, texto, creado_en").order("creado_en", { ascending: false }).limit(50),
     s.from("avisos").select("id, usuario_id, texto, enlace, leido, creado_en").order("creado_en", { ascending: false }).limit(30),
+    s.from("niveles").select("id, club_id, nombre, orden"),
   ]);
   const error = [clubs, usuarios, grupos, ga, sesiones, bajas, creditos, recs].find((r) => r.error)?.error;
   if (error) throw new Error(`No se pudieron leer los datos: ${error.message}`);
@@ -54,6 +55,7 @@ async function foto(): Promise<Db> {
     notasPrivadas: Object.fromEntries((notas.data ?? []).map((x) => [x.alumno_id, x.texto])),
     anuncios: (anun.data ?? []).map((x) => ({ id: x.id, clubId: x.club_id, autorId: x.autor_id ?? undefined, texto: x.texto, creado: x.creado_en })),
     avisos: (avs.data ?? []).map((x) => ({ id: x.id, usuarioId: x.usuario_id, texto: x.texto, enlace: x.enlace ?? undefined, leido: x.leido, creado: x.creado_en })),
+    niveles: (nivs.data ?? []).map((n) => ({ id: n.id, clubId: n.club_id, nombre: n.nombre, orden: n.orden })),
     invitaciones: (invs.data ?? []).map((i) => ({
       email: i.email, clubId: i.club_id ?? "", nombre: i.nombre, rol: i.rol, nivel: i.nivel ?? undefined, grupos: i.grupos ?? [],
     })),
@@ -138,4 +140,9 @@ export const acciones = {
     modoSupabase
       ? rpc("admin_marca_club", { p_club: club, p_color: color || null, p_logo: logo, p_cancelar_recupera: cancelarRecupera })
       : Promise.resolve(demo.marcaClub(club, color, logo, cancelarRecupera)),
+  guardarNivel: (id: string | null, club: string, nombre: string, orden?: number) =>
+    modoSupabase
+      ? rpc("admin_guardar_nivel", { p_id: id, p_club: club, p_nombre: nombre, p_orden: orden ?? null })
+      : Promise.resolve(demo.guardarNivel(id, club, nombre, orden)),
+  borrarNivel: (id: string) => (modoSupabase ? rpc("admin_borrar_nivel", { p_id: id }) : Promise.resolve(demo.borrarNivel(id))),
 };

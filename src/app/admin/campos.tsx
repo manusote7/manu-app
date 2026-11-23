@@ -27,10 +27,12 @@ export function CamposGrupo({ g, profes, niveles, profeEmail }: { g?: Grupo; pro
       <div className="fila">
         <label>Nombre<input name="nombre" className="campo" required defaultValue={g?.nombre} placeholder="Intermedio B" /></label>
         <label>Nivel
-          <input name="nivel" className="campo" required defaultValue={g?.nivel} list="niveles" placeholder="Intermedio" />
+          <select name="nivel" className="campo" required defaultValue={g?.nivel ?? ""}>
+            <option value="" disabled>Elige nivel</option>
+            {[...new Set([...(g?.nivel ? [g.nivel] : []), ...niveles])].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
         </label>
       </div>
-      <datalist id="niveles">{niveles.map((n) => <option key={n} value={n} />)}</datalist>
       <div className="fila">
         <label>Día
           <select name="dia" className="campo" defaultValue={g?.dia ?? 1}>

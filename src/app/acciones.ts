@@ -285,3 +285,34 @@ export async function marcaClub(form: FormData) {
   const err = await a.marcaClub(club, txt(form, "color"), txt(form, "logo"), form.get("recupera") === "on");
   volver(`/admin/club/${club}`, err, "Marca y reglas guardadas.");
 }
+
+export async function guardarNivel(form: FormData) {
+  await yoAdmin();
+  const club = txt(form, "club");
+  const orden = txt(form, "orden") ? num(form, "orden", 1) : undefined;
+  const err = await a.guardarNivel(txt(form, "id") || null, club, txt(form, "nombre"), orden);
+  volver(`/admin/club/${club}#niveles`, err, "Nivel guardado.");
+}
+
+/** Sube o baja un nivel en la lista intercambiando su orden con el vecino */
+export async function moverNivel(form: FormData) {
+  await yoAdmin();
+  const club = txt(form, "club");
+  const lista = (await datos()).nivelesDeClub(club);
+  const i = lista.findIndex((n) => n.id === txt(form, "id"));
+  const j = i + (txt(form, "dir") === "arriba" ? -1 : 1);
+  let err: string | null = null;
+  if (i >= 0 && j >= 0 && j < lista.length) {
+    lista.forEach((n, k) => (n.orden = k + 1));
+    [lista[i].orden, lista[j].orden] = [lista[j].orden, lista[i].orden];
+    for (const n of lista) err ??= await a.guardarNivel(n.id, club, n.nombre, n.orden);
+  }
+  volver(`/admin/club/${club}#niveles`, err, "Orden guardado.");
+}
+
+export async function borrarNivel(form: FormData) {
+  await yoAdmin();
+  const club = txt(form, "club");
+  const err = await a.borrarNivel(txt(form, "id"));
+  volver(`/admin/club/${club}#niveles`, err, "Nivel borrado.");
+}

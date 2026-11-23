@@ -175,8 +175,8 @@ textarea:focus, .campo:focus { outline: 2px solid var(--pista-2); outline-offset
 .lista > * { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 14px 16px; border: 0; background: none;
   border-bottom: 1px solid var(--linea); font-size: .95rem; text-align: left; }
 .lista > *:last-child { border-bottom: 0; }
-.lista form { padding: 0; }
-.lista form button { width: 100%; padding: 14px 16px; border: 0; background: none; text-align: left; font-size: .95rem; }
+.lista > form { padding: 0; }
+.lista > form > button { width: 100%; padding: 14px 16px; border: 0; background: none; text-align: left; font-size: .95rem; }
 
 /* Carga */
 .esq { background: linear-gradient(90deg, var(--linea) 0%, var(--card) 50%, var(--linea) 100%); background-size: 200% 100%;
@@ -225,3 +225,14 @@ details.bloque > .form, details.bloque > .contenido { padding: 0 14px 14px; }
 .marca img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .aviso-item { display: grid; gap: 2px; }
 .aviso-item.nuevo { border-left: 3px solid var(--pista-2); }
+.pestanas { display: flex; gap: 6px; padding: 0 18px 6px; overflow-x: auto; }
+.pestanas a { font-size: .85rem; font-weight: 600; padding: 7px 14px; border-radius: 99px; background: var(--card); border: 1px solid var(--linea); }
+.nivel-fila { display: grid; grid-template-columns: 24px 1fr auto auto; align-items: center; gap: 10px; padding: 10px 12px !important; }
+.nivel-num { font-family: var(--display); font-weight: 700; color: var(--muted); text-align: center; }
+.nivel-nombre { display: flex; gap: 6px; min-width: 0; }
+.nivel-nombre .campo { padding: 8px 10px; font-size: .95rem; min-width: 0; flex: 1; }
+.nivel-nombre .btn { min-height: 38px; }
+.nivel-acc { display: flex; gap: 4px; }
+.nivel-acc .icono-btn { width: 34px; height: 34px; font-size: 1rem; }
+.icono-btn[disabled] { opacity: .35; }
+@media (max-width: 480px) { .nivel-fila { grid-template-columns: 20px 1fr auto; } .nivel-fila > .meta { display: none; } .nivel-nombre .btn { padding: 8px 10px; } }

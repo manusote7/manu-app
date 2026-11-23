@@ -94,8 +94,12 @@ export function FormAlta({ club, grupos, niveles, ruta, puedeProfe }: { club: st
               <select name="rol" className="campo" defaultValue="alumno"><option value="alumno">Alumno</option><option value="profe">Profe</option></select>
             </label>
           )}
-          <label>Nivel (alumnos)<input name="nivel" className="campo" list="niveles-alta" placeholder="Intermedio" /></label>
-          <datalist id="niveles-alta">{niveles.map((n) => <option key={n} value={n} />)}</datalist>
+          <label>Nivel (alumnos)
+            <select name="nivel" className="campo" defaultValue="">
+              <option value="">Sin nivel</option>
+              {niveles.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
         </div>
         {grupos.length > 0 && (
           <>

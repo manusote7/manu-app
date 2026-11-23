@@ -20,7 +20,7 @@ export default async function Alumnos({ searchParams }: { searchParams: Promise<
   const lista = verTodos ? todos : todos.filter((p) => p.grupos.some((g) => misGrupos.has(g)) || !p.usuario || !p.activo);
   const activos = lista.filter((p) => p.activo);
   const inactivos = lista.filter((p) => !p.activo);
-  const niveles = [...new Set(grupos.map((g) => g.nivel))].sort();
+  const niveles = d.nivelesDeClub(u.clubId).map((n) => n.nombre);
   const ruta = `/alumnos${verTodos ? "?ver=club" : ""}`;
 
   return (

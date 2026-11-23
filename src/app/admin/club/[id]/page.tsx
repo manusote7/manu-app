@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { datos } from "@/lib/repo";
 import { yoAdmin } from "@/lib/sesion";
-import { guardarClub, guardarGrupo, borrarGrupo, marcaClub, publicarAnuncio } from "../../../acciones";
+import { guardarClub, guardarGrupo, borrarGrupo, marcaClub, publicarAnuncio, guardarNivel, moverNivel, borrarNivel } from "../../../acciones";
 import { Aviso, EstiloClub, Icono, Marca } from "../../../marco";
 import { Boton } from "../../../cliente";
 import { CamposClub, CamposGrupo, DIAS } from "../../campos";
@@ -21,7 +21,8 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
   const personas = d.personasDeClub(id);
   const profes = personas.filter((p) => p.rol === "profe");
   const alumnos = personas.filter((p) => p.rol === "alumno");
-  const niveles = [...new Set([...grupos.map((g) => g.nivel), ...alumnos.map((a) => a.nivel ?? "")].filter(Boolean))].sort();
+  const listaNiveles = d.nivelesDeClub(id);
+  const niveles = listaNiveles.map((n) => n.nombre);
   const emailProfe = (g: { profeId: string; id: string }) =>
     profes.find((p) => p.usuario?.id === g.profeId)?.email ?? profes.find((p) => !p.usuario && p.grupos.includes(g.id))?.email;
   const ruta = `/admin/club/${id}#personas`;
@@ -37,6 +38,9 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
           <div className="cab-txt"><span className="cab-club">Código <span className="codigo-club">{club.codigo}</span></span><h1>{club.nombre}</h1></div>
         </div>
       </header>
+      <nav className="pestanas" aria-label="Secciones del club">
+        <a href="#niveles">Niveles</a><a href="#grupos">Grupos</a><a href="#personas">Personas</a>
+      </nav>
       <div className="body" style={{ paddingBottom: 40 }}>
         <details className="bloque">
           <summary><b>Datos y reglas del club</b><span className="meta">Baja {club.horasBaja} h antes · recuperar en {club.diasCaducidad} días</span></summary>
@@ -72,6 +76,47 @@ export default async function ClubAdmin({ params, searchParams }: { params: Prom
             <div><Boton className="btn prim">Publicar</Boton></div>
           </form>
         </details>
+
+        <div className="tit-seccion" id="niveles"><h2>Niveles</h2><span className="meta">Los profes eligen de esta lista</span></div>
+        <div className="lista">
+          {listaNiveles.map((n, i) => {
+            const usos = grupos.filter((g) => g.nivel === n.nombre).length + alumnos.filter((a) => a.nivel === n.nombre).length;
+            return (
+              <div key={n.id || n.nombre} className="nivel-fila">
+                <span className="nivel-num">{i + 1}</span>
+                <form action={guardarNivel} className="nivel-nombre">
+                  <input type="hidden" name="club" value={id} />
+                  <input type="hidden" name="id" value={n.id} />
+                  <input name="nombre" className="campo" defaultValue={n.nombre} aria-label={`Nombre del nivel ${i + 1}`} required />
+                  <Boton className="btn">Guardar</Boton>
+                </form>
+                <span className="meta" title="Grupos y alumnos con este nivel">{usos}</span>
+                {n.id && (
+                  <div className="nivel-acc">
+                    {(["arriba", "abajo"] as const).map((dir) => (
+                      <form key={dir} action={moverNivel}>
+                        <input type="hidden" name="club" value={id} /><input type="hidden" name="id" value={n.id} /><input type="hidden" name="dir" value={dir} />
+                        <button className="icono-btn" disabled={dir === "arriba" ? i === 0 : i === listaNiveles.length - 1} aria-label={dir === "arriba" ? "Subir" : "Bajar"}>{dir === "arriba" ? "↑" : "↓"}</button>
+                      </form>
+                    ))}
+                    <form action={borrarNivel}>
+                      <input type="hidden" name="club" value={id} /><input type="hidden" name="id" value={n.id} />
+                      <button className="icono-btn" disabled={usos > 0} aria-label="Borrar nivel" title={usos > 0 ? "Tiene grupos o alumnos" : "Borrar"}>×</button>
+                    </form>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <form action={guardarNivel} className="nivel-fila">
+            <input type="hidden" name="club" value={id} />
+            <span className="nivel-num">+</span>
+            <div className="nivel-nombre">
+              <input name="nombre" className="campo" placeholder="Nuevo nivel, ej. Iniciación 2" aria-label="Nuevo nivel" required />
+              <Boton className="btn prim">Añadir</Boton>
+            </div>
+          </form>
+        </div>
 
         <div className="tit-seccion" id="grupos"><h2>Grupos</h2><span className="meta">{grupos.length}</span></div>
         {grupos.map((g) => (
