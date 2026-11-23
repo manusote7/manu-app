@@ -7,13 +7,13 @@ export function EntrarConCodigo({ email, admin, error, otroEmail }: { email: str
     <form action={entrarCodigo} className="card">
       {error && <p className="mensaje" role="alert">{error}</p>}
       <h2 style={{ fontSize: "1.2rem" }}>Mira tu correo</h2>
-      <p>Hemos enviado un código a <b>{email}</b>. Escríbelo aquí:</p>
+      <p>Te hemos enviado un email a <b>{email}</b>. Si trae un <b>código</b>, escríbelo aquí. Si trae un <b>enlace</b>, ábrelo y entrarás en el navegador.</p>
       <input type="hidden" name="email" value={email} />
       {admin && <input type="hidden" name="admin" value="1" />}
       <input name="codigo" className="campo codigo" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,10}" maxLength={10}
         required placeholder="123456" aria-label="Código del email" autoFocus />
       <Boton className="btn prim grande">Entrar</Boton>
-      <p className="meta">Si no llega en un minuto, mira en spam. Si abres el enlace del email en el navegador, también entras ahí.</p>
+      <p className="meta">Si no llega en un minuto, mira en spam.</p>
       <a className="btn grande" href={otroEmail}>Usar otro email</a>
     </form>
   );
