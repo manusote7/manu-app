@@ -16,7 +16,11 @@ export async function GET(req: NextRequest) {
       ? await s.auth.verifyOtp({ token_hash: tokenHash, type })
       : { error: new Error("sin código") };
   const next = url.searchParams.get("next") === "/admin" ? "/admin" : "/semana";
-  if (!error) return NextResponse.redirect(new URL(next, url));
+  if (!error) {
+    const res = NextResponse.redirect(new URL(next, url));
+    if (next === "/admin") res.cookies.set("admin_aqui", "1", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
+    return res;
+  }
   const club = await clubElegido();
   const msg = encodeURIComponent("El enlace ha caducado o ya se usó. Pide otro.");
   return NextResponse.redirect(new URL(club ? `/c/${club.slug}?error=${msg}` : "/", url));
