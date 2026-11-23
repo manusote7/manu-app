@@ -17,7 +17,8 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-  await supabase.auth.getUser();
+  // getClaims comprueba la sesión sin ir al servidor de Supabase si las claves son asimétricas
+  await supabase.auth.getClaims();
   return res;
 }
 

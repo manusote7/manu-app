@@ -22,7 +22,7 @@ export async function yo(): Promise<Usuario> {
   if (!club) redirect("/");
   let id: string | undefined;
   if (modoSupabase) {
-    id = (await (await sb()).auth.getUser()).data.user?.id;
+    id = (await (await sb()).auth.getClaims()).data?.claims?.sub;
   } else {
     id = (await cookies()).get("uid")?.value;
   }
@@ -32,4 +32,10 @@ export async function yo(): Promise<Usuario> {
     redirect(`/c/${club.slug}?error=${encodeURIComponent("Tu cuenta no pertenece a este club.")}`);
   }
   return u;
+}
+
+/** ¿Hay alguien conectado en este dispositivo? (sin redirigir) */
+export async function conectado(): Promise<boolean> {
+  if (modoSupabase) return Boolean((await (await sb()).auth.getClaims()).data?.claims?.sub);
+  return Boolean((await cookies()).get("uid")?.value);
 }
