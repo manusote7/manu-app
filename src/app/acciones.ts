@@ -47,7 +47,8 @@ export async function entrarEmail(form: FormData) {
   const origen = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
   const { error } = await (await sb()).auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: `${origen}/auth/confirm${admin ? "?next=/admin" : ""}` },
+    // data: se guarda al crear la cuenta y la plantilla del email lo usa para poner el nombre del club
+    options: { emailRedirectTo: `${origen}/auth/confirm${admin ? "?next=/admin" : ""}`, data: club ? { club: club.nombre } : undefined },
   });
   const ruta = admin ? "/admin" : `/c/${club!.slug}`;
   if (error) {
