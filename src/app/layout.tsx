@@ -6,10 +6,10 @@ const display = Bricolage_Grotesque({ subsets: ["latin"], weight: ["600", "800"]
 const body = Figtree({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--f-body" });
 
 export const metadata: Metadata = {
-  title: "Escuela de pádel",
+  title: process.env.NEXT_PUBLIC_APP === "admin" ? "PalaClass Admin" : "PalaClass",
   description: "Clases, bajas y recuperaciones",
-  applicationName: "Pádel",
-  appleWebApp: { capable: true, title: "Pádel", statusBarStyle: "default" },
+  applicationName: "PalaClass",
+  appleWebApp: { capable: true, title: "PalaClass", statusBarStyle: "default" },
   icons: { apple: "/apple-touch-icon.png" },
   formatDetection: { telephone: false },
 };

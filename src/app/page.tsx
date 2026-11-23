@@ -14,6 +14,7 @@ export default async function EntrarClub({ searchParams }: { searchParams: Promi
     <main className="app acceso">
       <div className="acceso-hero">
         <span className="marca" aria-hidden>P</span>
+        <p className="nombre-app">PalaClass</p>
         <h1>Tus clases de pádel, en el bolsillo</h1>
         <p>Consulta tu semana, avisa si no puedes ir y recupera la clase en otro grupo.</p>
       </div>

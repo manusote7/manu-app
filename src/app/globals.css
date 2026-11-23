@@ -310,3 +310,4 @@ details.bloque > .form, details.bloque > .contenido { padding: 0 14px 14px; }
 .grupo-sec { display: grid; gap: 8px; }
 .grupo-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 2px; }
 .grupo-cab b { font-family: var(--display); font-weight: 700; font-size: 1.02rem; }
+.nombre-app { font-family: var(--display); font-weight: 800; letter-spacing: .02em; color: var(--pista-2); font-size: 1rem; }

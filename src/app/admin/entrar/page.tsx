@@ -10,6 +10,7 @@ export default async function EntrarAdmin({ searchParams }: { searchParams: Prom
     <main className="app acceso">
       <div className="acceso-hero">
         <span className="marca" aria-hidden>A</span>
+        <p className="nombre-app">PalaClass</p>
         <h1>Administración</h1>
         <p>Gestiona todos los clubs: grupos, reglas y altas.</p>
       </div>

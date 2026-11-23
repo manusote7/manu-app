@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   const admin = process.env.NEXT_PUBLIC_APP === "admin";
   return {
-    name: admin ? "Pádel · Administración" : "Escuela de pádel",
-    short_name: admin ? "Admin pádel" : "Pádel",
+    name: admin ? "PalaClass Admin" : "PalaClass",
+    short_name: admin ? "PalaClass Admin" : "PalaClass",
     description: "Tus clases de pádel: semana, bajas, recuperaciones y chat del grupo.",
     start_url: admin ? "/admin" : "/semana",
     scope: "/",
