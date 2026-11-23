@@ -140,6 +140,7 @@ function ClaseAlumno({ c, u, d, recs, hoy }: { c: Clase; u: Usuario; d: Consulta
         {c.contenido
           ? <div className="sesion"><small>Qué vais a trabajar</small>{c.contenido}</div>
           : <Plan c={c} d={d} />}
+        <Link href={`/chat/${c.grupo.id}`} className="enlace-chat"><Icono.chat />Chat del grupo</Link>
         {!deBaja && !pasada && (
           ahora <= limite ? (
             <form action={darBaja} className="acciones">
@@ -265,6 +266,7 @@ function ClaseProfe({ c, d }: { c: Clase; d: Consultas }) {
         </form>
         {c.contenido && <div className="sesion"><small>Sesión</small>{c.contenido}</div>}
         <Plan c={c} d={d} />
+        <Link href={`/chat/${c.grupo.id}`} className="enlace-chat"><Icono.chat />Chat del grupo</Link>
         {!empezada && <Colocar c={c} d={d} ruta={ruta} />}
         <details className="editar">
           <summary>{c.contenido ? "Editar sesión y plazas" : "+ Preparar sesión y plazas"}</summary>

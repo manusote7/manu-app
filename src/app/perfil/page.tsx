@@ -4,7 +4,7 @@ import { datos } from "@/lib/repo";
 import { DIAS } from "../admin/campos";
 import { salir, cambiarClub } from "../acciones";
 import { Cabecera, Nav, iniciales } from "../marco";
-import { Boton } from "../cliente";
+import { Boton, Instalar } from "../cliente";
 
 export default async function Perfil() {
   const u = await yo();
@@ -39,6 +39,7 @@ export default async function Perfil() {
             {ficha.aTrabajar && <div className="sesion" style={{ background: "var(--pelota-suave)" }}><small style={{ color: "inherit" }}>Te toca trabajar</small><span className="texto-ficha">{ficha.aTrabajar}</span></div>}
           </div>
         )}
+        <Instalar />
         <div className="lista">
           <form action={salir}><Boton className="">Cerrar sesión</Boton></form>
           <form action={cambiarClub}><Boton className="">Cambiar de club</Boton></form>
